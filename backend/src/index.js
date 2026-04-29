@@ -33,7 +33,7 @@ if (!fs.existsSync(uploadDir)) {
 
 // Middleware
 app.use(cors({ 
-  origin: ["http://localhost:5173", "http://localhost:8081"], 
+  origin: ["http://localhost:5173", "http://localhost:8081","https://admin.hotelpro.aksayah.com/"], 
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"] 
