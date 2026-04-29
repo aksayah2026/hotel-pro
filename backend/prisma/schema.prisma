@@ -1,0 +1,343 @@
+// This is your Prisma schema file - verified for soft delete
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles: SUPER_ADMIN, TENANT_ADMIN, STAFF
+// Using String for flexibility as requested, but keeping logic for 3 tiers
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  CLEANING
+  MAINTENANCE
+}
+
+enum BookingStatus {
+  BOOKED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  INACTIVE
+}
+
+enum PaymentType {
+  ADVANCE
+  FULL
+  REMAINING
+}
+
+enum AccessLevel {
+  FULL
+  READ_ONLY
+  BLOCKED
+}
+
+model Tenant {
+  id             String   @id @default(uuid())
+  businessName   String
+  ownerName      String
+  address        String
+  phoneNumber    String
+  mobile         String   @unique
+  password       String
+
+  isDeleted      Boolean  @default(false)
+  deletedAt      DateTime?
+  deleteReason   String?
+
+  isActive       Boolean  @default(true)
+  isBlocked      Boolean  @default(false)
+  accessLevel    AccessLevel @default(FULL)
+  isSystem       Boolean  @default(false)
+
+  lastLoginAt    DateTime?
+  totalBookings  Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users          User[]
+  rooms          Room[]
+  roomTypes      RoomType[]
+  amenities      Amenity[]
+  bookings       Booking[]
+  subscriptions  Subscription[]
+  saasPayments   SaaSPayment[]
+  saasInvoices   SaaSInvoice[]
+
+  @@map("tenants")
+}
+
+model TenantDeletionLog {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenantName String
+  reason     String
+  deletedBy  String
+  createdAt  DateTime @default(now())
+
+  @@map("tenant_deletion_logs")
+}
+
+model SubscriptionPlan {
+  id              String  @id @default(uuid())
+  name            String
+  durationInDays  Int
+  price           Float
+  isTrial         Boolean @default(false)
+  isCustom        Boolean @default(false)
+
+  subscriptions  Subscription[]
+  saasPayments   SaaSPayment[]
+
+  @@map("subscription_plans")
+}
+
+
+model Subscription {
+  id        String             @id @default(uuid())
+  tenantId  String
+  planId    String
+  startDate DateTime           @default(now())
+  endDate   DateTime
+  status    SubscriptionStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  mobile    String   @unique
+  password  String
+  role      String   // SUPER_ADMIN / TENANT_ADMIN / STAFF
+
+  tenantId  String   // ✅ REQUIRED
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  isActive  Boolean  @default(true)
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+  deleteReason String?
+  lastLoginAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model RoomType {
+  id       String @id @default(uuid())
+  tenantId String
+  name     String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  rooms  Room[]
+
+  @@unique([tenantId, name])
+  @@map("room_types")
+}
+
+model Amenity {
+  id       String @id @default(uuid())
+  tenantId String
+  name     String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  rooms  Room[] @relation("RoomAmenities")
+
+  @@unique([tenantId, name])
+  @@map("amenities")
+}
+
+model Room {
+  id          String     @id @default(uuid())
+  tenantId    String
+  roomNumber  String
+  typeId      String
+  floor       Int
+  capacity    Int        @default(2)
+  status      RoomStatus @default(AVAILABLE)
+  description String?
+  images      String[]
+  isActive    Boolean    @default(true)
+  baseTariff  Decimal    @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  roomType     RoomType      @relation(fields: [typeId], references: [id])
+  amenities    Amenity[]     @relation("RoomAmenities")
+  bookingRooms BookingRoom[]
+
+  @@unique([tenantId, roomNumber])
+  @@map("rooms")
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  tenantId        String
+  bookingNumber   String        @unique
+  userId          String
+  checkInDate     DateTime
+  checkOutDate    DateTime
+  actualCheckIn   DateTime?
+  actualCheckOut  DateTime?
+  status          BookingStatus @default(BOOKED)
+  roomAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  discount        Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  pendingAmount   Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus   PaymentStatus @default(PENDING)
+  specialRequests String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  bookingRooms BookingRoom[]
+  customer     Customer?
+  payments     Payment[]
+  extraCharges ExtraCharge[]
+
+  @@map("bookings")
+}
+
+model BookingRoom {
+  id        String @id @default(uuid())
+  bookingId String
+  roomId    String
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  room    Room    @relation(fields: [roomId], references: [id])
+
+  @@unique([bookingId, roomId])
+  @@map("booking_rooms")
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  bookingId    String   @unique
+  name         String
+  mobile       String
+  email        String?
+  aadhaarImage String
+  address      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("customers")
+}
+
+model Payment {
+  id        String      @id @default(uuid())
+  bookingId String
+  amount    Decimal     @db.Decimal(10, 2)
+  mode      PaymentMode
+  type      PaymentType @default(ADVANCE)
+  reference String?
+  notes     String?
+  paidAt    DateTime    @default(now())
+  createdAt DateTime    @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("payments")
+}
+
+model ExtraCharge {
+  id        String   @id @default(uuid())
+  bookingId String
+  label     String
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("extra_charges")
+}
+
+model SaaSPayment {
+  id        String   @id @default(uuid())
+  tenantId  String
+  amount    Float
+  planId    String
+  status    String   // PENDING, COMPLETED, FAILED
+  method    String   // UPI, CARD, CASH, etc.
+  paidAt    DateTime?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
+  invoice   SaaSInvoice?
+
+  @@map("saas_payments")
+}
+
+model SaaSInvoice {
+  id            String   @id @default(uuid())
+  tenantId      String
+  paymentId     String?  @unique
+  invoiceNumber String   @unique
+  amount        Float
+  tax           Float
+  total         Float
+  status        String   // DRAFT, SENT, PAID, VOID
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  payment SaaSPayment? @relation(fields: [paymentId], references: [id])
+
+  @@map("saas_invoices")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  tenantId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
