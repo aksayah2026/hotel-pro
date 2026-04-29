@@ -213,7 +213,7 @@ export default function CreateTenant() {
 
               return (
                 <>
-                  <Divider orientation="left">Payment Details</Divider>
+                  <Divider orientation={"left" as any}>Payment Details</Divider>
                   <Row gutter={16}>
                     <Col span={6}>
                       <Form.Item name="planPrice" label="Plan Price (₹)">

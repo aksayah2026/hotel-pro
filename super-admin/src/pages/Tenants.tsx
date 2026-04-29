@@ -265,8 +265,8 @@ export default function Tenants() {
       key: 'activity',
       render: (_, record) => (
         <Space direction="vertical" size={0}>
-          <Text size="xs" type="secondary">Login: {record.lastLoginAt ? dayjs(record.lastLoginAt).fromNow() : 'Never'}</Text>
-          <Text size="xs" type="secondary">Bookings: {record.totalBookings || 0}</Text>
+          <Text style={{ fontSize: '12px' }} type="secondary">Login: {record.lastLoginAt ? dayjs(record.lastLoginAt).fromNow() : 'Never'}</Text>
+          <Text style={{ fontSize: '12px' }} type="secondary">Bookings: {record.totalBookings || 0}</Text>
         </Space>
       )
     },

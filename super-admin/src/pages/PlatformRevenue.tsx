@@ -108,7 +108,7 @@ export default function PlatformRevenue() {
                 <LineChart data={data?.monthlyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" />
-                  <YAxis prefix="₹" />
+                  <YAxis tickFormatter={(val) => `₹${val}`} />
                   <RechartsTooltip formatter={(val: any) => `₹${val.toLocaleString()}`} />
                   <Line 
                     type="monotone" 
