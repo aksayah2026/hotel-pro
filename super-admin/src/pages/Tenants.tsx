@@ -458,7 +458,7 @@ export default function Tenants() {
         {selectedTenant && (
           <Tabs defaultActiveKey="info">
             <TabPane tab={<span><EyeOutlined /> General Info</span>} key="info">
-              <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Descriptions title="Business Information" bordered column={1}>
                   <Descriptions.Item label="Business Name">{selectedTenant.businessName}</Descriptions.Item>
                   <Descriptions.Item label="Owner Name">{selectedTenant.ownerName}</Descriptions.Item>
