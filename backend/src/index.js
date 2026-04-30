@@ -49,11 +49,18 @@ app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(helmet());
 
-// BUG-008: CSRF Protection
-const csrfProtection = csrf({ cookie: true });
+// BUG-008: CSRF Protection with Production-Ready Cookie Config
+const csrfProtection = csrf({ 
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // true for HTTPS in production
+    sameSite: 'none' // required for cross-domain cookies
+  } 
+});
+
 app.use((req, res, next) => {
-  // Skip CSRF for mobile app / token-based requests (if Authorization header exists)
-  if (req.headers.authorization) return next();
+  // Skip CSRF for mobile app (token-based) or login fallback if needed
+  if (req.headers.authorization || req.path === '/api/auth/login') return next();
   
   csrfProtection(req, res, next);
 }); 
