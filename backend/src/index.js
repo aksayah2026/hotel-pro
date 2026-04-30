@@ -24,6 +24,7 @@ require('./utils/cron'); // Initialize cron jobs
 const { errorHandler } = require('./middleware/error.middleware');
 const { authenticate, checkReadOnly } = require('./middleware/auth.middleware');
 const { checkSubscription } = require('./middleware/subscription.middleware');
+const { requireSuperAdmin } = require('./middleware/role.middleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,7 +40,7 @@ app.use(cors({
   origin: ["http://localhost:5173", "http://localhost:8081", "https://admin.hotelpro.aksayah.com"], 
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"] 
+  allowedHeaders: ["Content-Type", "Authorization", "CSRF-Token"] 
 }));
 app.options("*", cors());
 app.use(express.json({ limit: '50mb' }));
@@ -49,7 +50,13 @@ app.use(cookieParser());
 app.use(helmet());
 
 // BUG-008: CSRF Protection
-app.use(csrf({ cookie: true })); 
+const csrfProtection = csrf({ cookie: true });
+app.use((req, res, next) => {
+  // Skip CSRF for mobile app / token-based requests (if Authorization header exists)
+  if (req.headers.authorization) return next();
+  
+  csrfProtection(req, res, next);
+}); 
 
 // BUG-013: Static files
 app.use(express.static("public"));
@@ -58,6 +65,9 @@ app.use(express.static("public"));
 app.use('/uploads', express.static(uploadDir));
 
 // Public Routes
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 app.use('/api/auth', authRoutes);
 
 // Tenant Management (Super Admin) - BUG-001: Protect routes

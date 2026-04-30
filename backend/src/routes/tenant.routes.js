@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const tenantController = require('../controllers/tenant.controller');
-const { authenticate, requireSuperAdmin } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
+const { requireSuperAdmin } = require('../middleware/role.middleware');
 
 // Plans info
 router.get('/plans', authenticate, tenantController.getPlans);

@@ -288,12 +288,28 @@ export default function Dashboard() {
               loading={loading}
               locale={{ emptyText: 'No revenue records found' }}
               columns={[
-                { title: 'Hotel Name', dataIndex: 'name', key: 'name', render: (t) => <Text strong>{t}</Text> },
+                { 
+                  title: 'Hotel Name', 
+                  dataIndex: 'name', 
+                  key: 'name', 
+                  render: (t, record) => (
+                    <Space>
+                      <Text strong type={record.isDeleted ? 'secondary' : undefined}>
+                        {t}
+                      </Text>
+                      {record.isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
+                    </Space>
+                  ) 
+                },
                 { 
                   title: 'Lifetime SaaS Revenue', 
                   dataIndex: 'revenue', 
                   key: 'revenue', 
-                  render: (a) => <Text style={{ color: '#52c41a' }}>₹{Number(a || 0).toLocaleString('en-IN')}</Text> 
+                  render: (a, record) => (
+                    <Text style={{ color: record.isDeleted ? '#8c8c8c' : '#52c41a' }}>
+                      ₹{Number(a || 0).toLocaleString('en-IN')}
+                    </Text> 
+                  )
                 },
               ]}
             />

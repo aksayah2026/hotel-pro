@@ -8,17 +8,21 @@ const getAuditLogs = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
+    // Build where object dynamically, cleaning out invalid/undefined values
     const where = {};
-    if (action) where.action = action;
-    if (entity) where.entity = entity;
-    if (entityId) where.entityId = entityId;
     
-    if (tenantId) {
-      // Use entityId/entity mapping to avoid "Unknown argument tenantId" if DB not synced
-      // while still getting correct tenant-specific logs
-      where.entity = 'TENANT';
-      where.entityId = tenantId;
-    }
+    const addToWhere = (key, value) => {
+      if (value && value !== 'undefined' && value !== 'null' && value !== '') {
+        where[key] = value;
+      }
+    };
+
+    addToWhere('action', action);
+    addToWhere('entity', entity);
+    addToWhere('entityId', entityId);
+    addToWhere('tenantId', tenantId);
+
+    console.log('Final Prisma where clause:', where);
 
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({

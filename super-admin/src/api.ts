@@ -7,13 +7,28 @@ const api = axios.create({
   withCredentials: true, // BUG-006: Send cookies with requests
 });
 
-// Add a request interceptor to attach the token (Fallback for non-cookie auth)
+// Add a request interceptor to attach CSRF token and Auth token
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // 1. Handle Auth Token (Fallback for non-cookie auth)
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // 2. Handle CSRF Token for mutations
+    if (['post', 'put', 'delete', 'patch'].includes(config.method || '')) {
+      try {
+        // Fetch fresh CSRF token if not already in headers
+        if (!config.headers['CSRF-Token']) {
+          const res = await axios.get(`${API_URL}/csrf-token`, { withCredentials: true });
+          config.headers['CSRF-Token'] = res.data.csrfToken;
+        }
+      } catch (err) {
+        console.error('Failed to fetch CSRF token', err);
+      }
+    }
+
     return config;
   },
   (error) => {

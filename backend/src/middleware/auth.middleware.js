@@ -66,18 +66,4 @@ const checkReadOnly = (req, res, next) => {
   next();
 };
 
-const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'TENANT_ADMIN' && req.user.role !== 'SUPER_ADMIN') {
-    return res.status(403).json({ success: false, message: 'Admin access required' });
-  }
-  next();
-};
-
-const requireSuperAdmin = (req, res, next) => {
-  if (req.user.role !== 'SUPER_ADMIN') {
-    return res.status(403).json({ success: false, message: 'Super Admin access required' });
-  }
-  next();
-};
-
-module.exports = { authenticate, requireAdmin, requireSuperAdmin, checkReadOnly };
+module.exports = { authenticate, checkReadOnly };

@@ -23,12 +23,16 @@ const getSuperAdminStats = async (req, res) => {
     
     // 2. Revenue Calculations (SaaS and Booking)
     // SaaS Revenue: Sum of all completed SaaS payments
+    const revenueAggregation = await prisma.saaSPayment.aggregate({
+      where: { status: 'COMPLETED' },
+      _sum: { amount: true }
+    });
+    const totalSaasRevenue = revenueAggregation._sum.amount || 0;
+
     const saasPayments = await prisma.saaSPayment.findMany({
       where: { status: 'COMPLETED' },
       include: { plan: true, tenant: true }
     });
-
-    const totalSaasRevenue = saasPayments.reduce((sum, p) => sum + p.amount, 0);
 
     // 3. Monthly SaaS Revenue Trend
     const monthlyRevenue = Array.from({ length: 12 }, (_, i) => ({
@@ -67,11 +71,12 @@ const getSuperAdminStats = async (req, res) => {
       saasRevenueByTenant.map(async (item) => {
         const tenant = await prisma.tenant.findUnique({
           where: { id: item.tenantId },
-          select: { businessName: true }
+          select: { businessName: true, isDeleted: true }
         });
         return {
-          name: tenant?.businessName || 'Unknown',
-          revenue: item._sum.amount || 0
+          name: tenant?.businessName || 'Deleted Tenant',
+          revenue: item._sum.amount || 0,
+          isDeleted: tenant?.isDeleted || (tenant === null)
         };
       })
     );

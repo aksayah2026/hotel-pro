@@ -188,9 +188,11 @@ const getAllTenants = async (req, res) => {
 
 
     // Sorting
-    let orderBy = { createdAt: 'desc' };
-    if (sort === 'highestRevenue') orderBy = { createdAt: 'desc' }; // Fallback since field is removed
-    else if (sort === 'expiringSoon') orderBy = { subscriptions: { _count: 'desc' } }; // Simplified, real one needs sub query
+    let orderBy = {};
+    if (sort === 'latest') orderBy = { createdAt: 'desc' };
+    else if (sort === 'oldest') orderBy = { createdAt: 'asc' };
+    else if (sort === 'businessName') orderBy = { businessName: 'asc' };
+    else orderBy = { createdAt: 'desc' }; // Default to latest
 
     const [tenants, total] = await Promise.all([
       prisma.tenant.findMany({
@@ -230,7 +232,6 @@ const getTenantActivity = async (req, res) => {
         businessName: true,
         lastLoginAt: true,
         totalBookings: true,
-        totalRevenue: true,
         isActive: true,
         isBlocked: true,
         accessLevel: true
@@ -300,22 +301,53 @@ const renewSubscription = async (req, res) => {
       startDate = now;
     }
 
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + plan.durationInDays);
+    const result = await prisma.$transaction(async (tx) => {
+      const subscription = await tx.subscription.create({
+        data: {
+          tenantId,
+          planId: plan.id,
+          startDate,
+          endDate,
+          status: endDate > now ? 'ACTIVE' : 'EXPIRED',
+        },
+      });
 
-    const subscription = await prisma.subscription.create({
-      data: {
-        tenantId,
-        planId: plan.id,
-        startDate,
-        endDate,
-        status: endDate > now ? 'ACTIVE' : 'EXPIRED',
-      },
+      // Create SaaS Payment Record (if not free trial)
+      const { discount = 0, paymentMethod = 'CASH' } = req.body;
+      const finalAmount = Math.max(0, plan.price - parseFloat(discount));
+
+      if (finalAmount > 0) {
+        const saasPayment = await tx.saaSPayment.create({
+          data: {
+            tenantId,
+            planId: plan.id,
+            amount: finalAmount,
+            status: 'COMPLETED',
+            method: paymentMethod,
+            paidAt: now,
+          }
+        });
+
+        // Create Invoice
+        await tx.saaSInvoice.create({
+          data: {
+            tenantId,
+            paymentId: saasPayment.id,
+            invoiceNumber: `INV-${Date.now()}-${tenantId.slice(0, 4)}`,
+            amount: finalAmount * 0.82,
+            tax: finalAmount * 0.18,
+            total: finalAmount,
+            status: 'PAID'
+          }
+        });
+      }
+
+      return { subscription, amount: finalAmount };
     });
 
-    await logAction(req.user.id, 'RENEW_SUBSCRIPTION', 'TENANT', tenantId, { planId, endDate });
+    await logAction(req.user.id, 'RENEW_SUBSCRIPTION', 'TENANT', tenantId, { planId, endDate, amount: result.amount });
 
-    res.json({ success: true, data: subscription });
+    res.json({ success: true, data: result.subscription });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

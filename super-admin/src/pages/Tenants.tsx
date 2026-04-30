@@ -154,7 +154,7 @@ export default function Tenants() {
       fetchTenants(1, pagination.pageSize);
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, status, planId]);
+  }, [search, status, planId, sort, expiringSoon]);
 
   const handleTableChange = (newPagination: any) => {
     fetchTenants(newPagination.current, newPagination.pageSize);

@@ -7,7 +7,8 @@ const {
   getRevenueReport 
 } = require('../controllers/dashboard.controller');
 const { getSuperAdminStats } = require('../controllers/admin.dashboard.controller');
-const { authenticate, requireSuperAdmin, requireAdmin } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
+const { requireSuperAdmin, requireAdmin } = require('../middleware/role.middleware');
 
 router.get('/stats', authenticate, getDashboardStats);
 router.get('/super-admin/stats', authenticate, requireSuperAdmin, getSuperAdminStats);
