@@ -4,7 +4,7 @@ import {
   RefreshControl, StatusBar, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Plus, BedDouble, Filter } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -42,7 +42,11 @@ export default function RoomsScreen() {
     }
   }, []);
 
-  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchRooms();
+    }, [fetchRooms])
+  );
 
   useEffect(() => {
     setFiltered(activeFilter === 'ALL' ? rooms : rooms.filter(r => r.status === activeFilter));

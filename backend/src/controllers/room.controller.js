@@ -104,6 +104,18 @@ const createRoom = async (req, res) => {
       return res.status(400).json({ success: false, message: 'roomNumber, type, and floor are required' });
     }
 
+    // Verify Room Type exists
+    const roomType = await prisma.roomType.findFirst({
+      where: { id: type, tenantId: req.user.tenantId }
+    });
+
+    if (!roomType) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Room type is required. Please create room type first.' 
+      });
+    }
+
     const existing = await prisma.room.findFirst({ 
         where: { 
             roomNumber,
@@ -175,6 +187,27 @@ const updateRoomStatus = async (req, res) => {
 
     const existing = await prisma.room.findFirst({ where: { id: req.params.id, tenantId: req.user.tenantId } });
     if (!existing) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    // Transition Rules
+    if (existing.status === 'OCCUPIED' && status === 'AVAILABLE') {
+      // Check if there is an active CHECKED_IN booking for this room
+      const activeBooking = await prisma.bookingRoom.findFirst({
+        where: {
+          roomId: req.params.id,
+          booking: {
+            status: 'CHECKED_IN',
+            tenantId: req.user.tenantId
+          }
+        }
+      });
+
+      if (activeBooking) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Room must be checked out before marking as available. Please complete the guest checkout first.' 
+        });
+      }
+    }
 
     const room = await prisma.room.update({
       where: { id: req.params.id },

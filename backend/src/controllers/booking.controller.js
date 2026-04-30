@@ -449,18 +449,38 @@ const cancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot cancel this booking' });
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: 'CANCELLED' },
-    });
-
-    if (booking.status === 'CHECKED_IN') {
-      const roomIds = booking.bookingRooms.map((br) => br.roomId);
-      await prisma.room.updateMany({
-        where: { id: { in: roomIds }, tenantId: req.user.tenantId },
-        data: { status: 'CLEANING' },
+    const updated = await prisma.$transaction(async (tx) => {
+      const b = await tx.booking.update({
+        where: { id: booking.id },
+        data: { status: 'CANCELLED' },
       });
-    }
+
+      const roomIds = booking.bookingRooms.map((br) => br.roomId);
+
+      for (const roomId of roomIds) {
+        // Check if any OTHER active booking exists for this room
+        const activeStay = await tx.bookingRoom.findFirst({
+          where: {
+            roomId,
+            booking: {
+              id: { not: booking.id },
+              status: 'CHECKED_IN',
+              tenantId: req.user.tenantId
+            }
+          }
+        });
+
+        // If no other guest is currently in this room
+        if (!activeStay) {
+          await tx.room.update({
+            where: { id: roomId },
+            data: { status: booking.status === 'CHECKED_IN' ? 'CLEANING' : 'AVAILABLE' },
+          });
+        }
+      }
+
+      return b;
+    });
 
     res.json({ success: true, data: updated });
   } catch (error) {

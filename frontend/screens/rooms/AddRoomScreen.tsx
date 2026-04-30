@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Alert, StatusBar, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -9,11 +9,15 @@ import { Header } from '../../components/Header';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { Badge } from '../../components/Badge';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { AlertCircle, Plus, Phone } from 'lucide-react-native';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AddRoomScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
+  const { user, isAdmin } = useAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const existingRoom: Room | undefined = route.params?.room;
@@ -38,28 +42,32 @@ export default function AddRoomScreen() {
   const [loading, setLoading] = useState(false);
   const [fetchingOptions, setFetchingOptions] = useState(true);
 
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const [typesRes, amenitiesRes] = await Promise.all([
-          roomService.getTypes(),
-          roomService.getAmenities()
-        ]);
-        setRoomTypes(typesRes.data.data);
-        setAllAmenities(amenitiesRes.data.data);
-        
-        // Default to first type if not editing
-        if (!isEdit && typesRes.data.data.length > 0) {
-          setForm(p => ({ ...p, type: typesRes.data.data[0].id }));
-        }
-      } catch {
-        Alert.alert('Error', 'Failed to load room types and amenities');
-      } finally {
-        setFetchingOptions(false);
+  const fetchOptions = async () => {
+    try {
+      const [typesRes, amenitiesRes] = await Promise.all([
+        roomService.getTypes(),
+        roomService.getAmenities()
+      ]);
+      const types = typesRes.data.data;
+      setRoomTypes(types);
+      setAllAmenities(amenitiesRes.data.data);
+      
+      // Default to first type if not editing and nothing selected
+      if (!isEdit && types.length > 0 && !form.type) {
+        setForm(p => ({ ...p, type: types[0].id }));
       }
-    };
-    fetchOptions();
-  }, [isEdit]);
+    } catch {
+      Alert.alert('Error', 'Failed to load room types and amenities');
+    } finally {
+      setFetchingOptions(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOptions();
+    }, [isEdit, form.type])
+  );
 
   const set = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
 
@@ -141,11 +149,52 @@ export default function AddRoomScreen() {
 
         {/* Room Type */}
         <Card>
-          <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, marginBottom: spacing.md }}>
-            Room Type
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
+              Room Type
+            </Text>
+            {roomTypes.length === 0 && (
+              <Badge label="Missing Config" variant="pending" size="sm" />
+            )}
+          </View>
+
           {roomTypes.length === 0 ? (
-            <Text style={{ color: colors.error, fontSize: fontSize.sm }}>No room types found. Please add them in Settings.</Text>
+            <View style={{ 
+              padding: spacing.lg, 
+              backgroundColor: colors.errorBg + '30', 
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: colors.error + '20',
+              alignItems: 'center',
+              gap: spacing.sm
+            }}>
+              <AlertCircle size={32} color={colors.error} />
+              <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, textAlign: 'center' }}>
+                No Room Types Found
+              </Text>
+              <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.sm }}>
+                {isAdmin 
+                  ? 'You need to create at least one room type (e.g. Single, Double) before adding rooms.' 
+                  : 'Room types are not configured. Please contact your hotel administrator to set them up.'}
+              </Text>
+              
+              {isAdmin ? (
+                <Button 
+                  label="Add Room Type" 
+                  size="sm" 
+                  onPress={() => navigation.navigate('Config')}
+                  icon={<Plus size={16} color={colors.textOnPrimary} />}
+                />
+              ) : (
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm }}
+                  onPress={() => Alert.alert('Contact Admin', 'Please reach out to your manager or hotel owner to configure room types.')}
+                >
+                  <Phone size={14} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontWeight: fontWeight.bold as any }}>Contact Admin</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {roomTypes.map((t) => (
@@ -207,7 +256,14 @@ export default function AddRoomScreen() {
           )}
         </Card>
 
-        <Button label={isEdit ? 'Update Room' : 'Create Room'} onPress={handleSubmit} loading={loading} fullWidth size="lg" />
+        <Button 
+          label={isEdit ? 'Update Room' : 'Create Room'} 
+          onPress={handleSubmit} 
+          loading={loading} 
+          fullWidth 
+          size="lg" 
+          disabled={roomTypes.length === 0 && !isEdit}
+        />
         <View style={{ height: spacing.xl }} />
       </ScrollView>
     </SafeAreaView>

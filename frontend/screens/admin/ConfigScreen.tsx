@@ -69,10 +69,19 @@ export default function ConfigScreen() {
   };
 
   const handleAddAmenity = async () => {
-    if (!newAmenity.trim()) return;
+    const trimmed = newAmenity.trim();
+    if (!trimmed) return;
+    
+    // Duplicate check
+    const exists = amenities.some(a => a.name.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      Alert.alert('Duplicate', 'This amenity already exists');
+      return;
+    }
+
     setActionLoading('addAmenity');
     try {
-      await roomService.createAmenity(newAmenity);
+      await roomService.createAmenity(trimmed);
       setNewAmenity('');
       fetchData();
     } catch (err: any) {
@@ -123,8 +132,9 @@ export default function ConfigScreen() {
       <ScrollView 
         contentContainerStyle={{ 
           paddingHorizontal: spacing.base, 
-          paddingBottom: insets.bottom + 40 
+          paddingBottom: insets.bottom + 60 
         }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
       >
         <SectionTitle title="Room Types" />
@@ -149,22 +159,72 @@ export default function ConfigScreen() {
         </View>
 
         <SectionTitle title="Amenities" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
           {amenities.map(a => (
-            <View key={a.id} style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.divider, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: fontSize.sm, color: colors.textPrimary }}>{a.name}</Text>
-              <TouchableOpacity onPress={() => handleDeleteAmenity(a.id, a.name)}>
-                <X size={14} color={colors.error} opacity={0.6} />
+            <View key={a.id} style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              backgroundColor: colors.backgroundSecondary,
+              paddingHorizontal: spacing.md, 
+              paddingVertical: spacing.sm, 
+              borderRadius: radius.full, 
+              margin: 2,
+              maxWidth: '90%',
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}>
+              <Text 
+                numberOfLines={1} 
+                ellipsizeMode="tail"
+                style={{ 
+                  fontSize: fontSize.sm, 
+                  color: colors.textPrimary, 
+                  flexShrink: 1,
+                  marginRight: spacing.xs,
+                  fontWeight: fontWeight.medium as any
+                }}
+              >
+                {a.name}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => handleDeleteAmenity(a.id, a.name)}
+                style={{ padding: 2 }}
+              >
+                <X size={16} color={colors.error} opacity={0.8} />
               </TouchableOpacity>
             </View>
           ))}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: 4, backgroundColor: colors.backgroundSecondary, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary + '40', minWidth: 140 }}>
-            <TextInput
-              style={{ flex: 1, height: 32, fontSize: fontSize.sm, color: colors.textPrimary }}
-              placeholder="Add amenity..." placeholderTextColor={colors.textMuted}
-              value={newAmenity} onChangeText={setNewAmenity} onSubmitEditing={handleAddAmenity}
-            />
-          </View>
+        </View>
+
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          gap: spacing.sm, 
+          paddingHorizontal: spacing.md, 
+          paddingVertical: 6, 
+          backgroundColor: colors.backgroundSecondary, 
+          borderRadius: radius.md, 
+          borderWidth: 1, 
+          borderStyle: 'dashed', 
+          borderColor: colors.primary + '60' 
+        }}>
+          <TextInput
+            style={{ flex: 1, height: 40, fontSize: fontSize.sm, color: colors.textPrimary }}
+            placeholder="e.g. Free WiFi, Pool..." placeholderTextColor={colors.textMuted}
+            value={newAmenity} onChangeText={setNewAmenity} onSubmitEditing={handleAddAmenity}
+          />
+          <TouchableOpacity 
+            onPress={handleAddAmenity}
+            disabled={!newAmenity.trim()}
+            style={{ 
+              backgroundColor: newAmenity.trim() ? colors.primary : colors.border,
+              paddingHorizontal: spacing.md,
+              paddingVertical: 6,
+              borderRadius: radius.sm
+            }}
+          >
+            <Text style={{ color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold as any }}>ADD</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
