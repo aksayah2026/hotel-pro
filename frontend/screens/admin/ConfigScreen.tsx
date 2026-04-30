@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Alert, StatusBar, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Send, Trash2, X } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { roomService, RoomType, Amenity } from '../../services/roomService';
@@ -14,6 +14,7 @@ export default function ConfigScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,12 +94,12 @@ export default function ConfigScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Header title="Hotel Config" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -111,7 +112,7 @@ export default function ConfigScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <Header 
         title="Hotel Config" 
@@ -120,7 +121,10 @@ export default function ConfigScreen() {
       />
 
       <ScrollView 
-        contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing['3xl'] }}
+        contentContainerStyle={{ 
+          paddingHorizontal: spacing.base, 
+          paddingBottom: insets.bottom + 40 
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
       >
         <SectionTitle title="Room Types" />
@@ -163,6 +167,6 @@ export default function ConfigScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

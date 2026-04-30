@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Card, Form, Input, Button, Typography, message, Space } from 'antd';
 import { LockOutlined, MobileOutlined, BankOutlined } from '@ant-design/icons';
-import { API_URL } from '../config';
 
 const { Title, Text } = Typography;
 
@@ -13,13 +12,15 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, values);
+      const res = await api.post(`/auth/login`, values);
       const { token, user } = res.data.data;
 
       if (user.role !== 'SUPER_ADMIN') {
         throw new Error('Access denied. Only Super Admins can enter this panel.');
       }
 
+      // We still store token for App.tsx state management, 
+      // but it will also be in an HttpOnly cookie.
       localStorage.setItem('token', token);
       onLogin(token);
       message.success('Welcome back, Super Admin!');

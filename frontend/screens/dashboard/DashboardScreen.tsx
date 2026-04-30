@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, RefreshControl,
   TouchableOpacity, StatusBar, Dimensions
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   TrendingUp, BedDouble, LogOut, Settings,
   AlertTriangle, ArrowUpRight, ArrowDownRight,
@@ -38,9 +38,10 @@ import { StaffDashboard } from './components/StaffDashboard';
 export default function DashboardScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
-  const { user, tenant, logout, refreshUser, isAdmin } = useAuth();
+   const { user, tenant, logout, refreshUser, isAdmin } = useAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [revenue, setRevenue] = useState<RevenueAnalytics | null>(null);
@@ -160,13 +161,15 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/* Header - BUG: Handle Notch / Status Bar */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: spacing.base, paddingVertical: spacing.md,
+        paddingHorizontal: spacing.base, 
+        paddingTop: insets.top + 10,
+        paddingBottom: spacing.md,
       }}>
         <View>
           <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.primary }}>
@@ -195,7 +198,11 @@ export default function DashboardScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
-        contentContainerStyle={{ padding: spacing.base, gap: spacing.lg }}>
+        contentContainerStyle={{ 
+          padding: spacing.base, 
+          gap: spacing.lg,
+          paddingBottom: insets.bottom + 100 // BUG: Prevent content cut at bottom
+        }}>
 
         {/* TIME CARD */}
         <View style={{ alignItems: 'center', gap: 2, paddingVertical: spacing.sm }}>
@@ -269,6 +276,6 @@ export default function DashboardScreen() {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

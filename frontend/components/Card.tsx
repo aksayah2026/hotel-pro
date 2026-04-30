@@ -22,7 +22,7 @@ export const Card: React.FC<CardProps> = ({ children, style, padding, elevated =
           padding: padding ?? spacing.base,
           ...(elevated ? theme.shadow.md : {}),
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.divider,
         },
         style,
       ]}>

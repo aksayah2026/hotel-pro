@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StatusBar, ActivityIndicator, FlatList
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Calendar, Filter, RefreshCcw, TrendingUp } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../theme';
@@ -25,6 +25,7 @@ export default function RevenueReportScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [type, setType] = useState<'month' | 'year'>('month');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -73,11 +74,15 @@ export default function RevenueReportScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" />
       <Header title="Revenue Report" showBack />
 
-      <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.lg }}>
+      <ScrollView contentContainerStyle={{ 
+        padding: spacing.base, 
+        gap: spacing.lg,
+        paddingBottom: insets.bottom + 40
+      }}>
         
         {/* Filter Selection */}
         <Card style={{ gap: spacing.md }}>
@@ -219,8 +224,7 @@ export default function RevenueReportScreen() {
           )}
         </View>
 
-        <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

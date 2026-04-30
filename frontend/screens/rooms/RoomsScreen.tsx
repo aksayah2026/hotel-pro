@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity,
   RefreshControl, StatusBar, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Plus, BedDouble, Filter } from 'lucide-react-native';
 import { useTheme } from '../../theme';
@@ -21,6 +21,7 @@ export default function RoomsScreen() {
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const { isAdmin } = useAuth();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [rooms, setRooms]           = useState<Room[]>([]);
   const [filtered, setFiltered]     = useState<Room[]>([]);
@@ -93,13 +94,15 @@ export default function RoomsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/* Header - BUG: Handle Notch */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: spacing.base, paddingVertical: spacing.md,
+        paddingHorizontal: spacing.base, 
+        paddingTop: insets.top + 10,
+        paddingBottom: spacing.md,
         backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider,
         ...theme.shadow.sm,
       }}>
@@ -169,7 +172,11 @@ export default function RoomsScreen() {
         keyExtractor={(i) => i.id}
         renderItem={renderRoom}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRooms(); }} colors={[colors.primary]} />}
-        contentContainerStyle={{ padding: spacing.base, flexGrow: 1 }}
+        contentContainerStyle={{ 
+          padding: spacing.base, 
+          flexGrow: 1,
+          paddingBottom: 40 // Extra space for scroll comfort
+        }}
         ListEmptyComponent={
           !loading ? (
             <EmptyState
@@ -180,6 +187,6 @@ export default function RoomsScreen() {
           ) : null
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }

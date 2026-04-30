@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, Alert, StatusBar, TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { roomService, Room, Amenity } from '../../services/roomService';
@@ -21,6 +21,7 @@ export default function RoomDetailScreen() {
   const { isAdmin } = useAuth();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
   const initialRoom = route?.params?.room;
   const onRefresh = route?.params?.onRefresh;
 
@@ -29,7 +30,7 @@ export default function RoomDetailScreen() {
 
   if (!initialRoom) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Header title="Room Details" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
            <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.error }}>Invalid Navigation</Text>
@@ -40,7 +41,7 @@ export default function RoomDetailScreen() {
              <Text style={{ color: colors.textOnPrimary, fontWeight: fontWeight.bold as any }}>Go Back</Text>
            </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -83,7 +84,7 @@ export default function RoomDetailScreen() {
   const typeIcons: Record<string, string> = { SINGLE: '🛏️', DOUBLE: '🛏️🛏️', SUITE: '👑', DELUXE: '✨' };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <Header
         title={`Room ${room.roomNumber}`}
@@ -107,7 +108,11 @@ export default function RoomDetailScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>
+      <ScrollView contentContainerStyle={{ 
+        padding: spacing.base, 
+        gap: spacing.base,
+        paddingBottom: insets.bottom + 40
+      }}>
         {/* Hero Card */}
         <View style={{
           backgroundColor: colors.primary,
@@ -191,8 +196,7 @@ export default function RoomDetailScreen() {
           </View>
         </Card>
 
-        <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

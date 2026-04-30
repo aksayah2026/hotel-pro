@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   LayoutDashboard, BedDouble, CalendarDays,
 } from 'lucide-react-native';
@@ -40,6 +41,7 @@ const Tab   = createBottomTabNavigator();
 const TabNavigator = () => {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -49,8 +51,8 @@ const TabNavigator = () => {
           backgroundColor: colors.tabBackground,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: spacing.sm,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: spacing.xs,
           ...theme.shadow.lg,
         },

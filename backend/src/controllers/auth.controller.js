@@ -85,10 +85,20 @@ const login = async (req, res) => {
 
     const token = generateToken(user.id);
 
+    // BUG-006: Set HttpOnly cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Secure in production
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     res.json({
       success: true,
       data: {
-        token,
+        // We still return token for backward compatibility if needed, 
+        // but the cookie is the primary secure way now.
+        token, 
         subscriptionStatus,
         expiryDate,
         planName,

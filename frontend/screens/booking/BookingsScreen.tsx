@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity,
   RefreshControl, StatusBar, Alert, Modal, TextInput, ActivityIndicator
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Calendar, Plus, LogIn, XCircle, CreditCard, LogOut, Eye, Phone, User, Search, Filter, X } from 'lucide-react-native';
 import { useTheme } from '../../theme';
@@ -22,6 +22,7 @@ export default function BookingsScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [bookings,  setBookings]  = useState<Booking[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -293,12 +294,14 @@ export default function BookingsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/* Header - BUG: Handle Notch */}
       <View style={{
-        paddingHorizontal: spacing.base, paddingVertical: spacing.md,
+        paddingHorizontal: spacing.base, 
+        paddingTop: insets.top + 10,
+        paddingBottom: spacing.md,
         backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider,
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -378,7 +381,11 @@ export default function BookingsScreen() {
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} /> : null}
-          contentContainerStyle={{ padding: spacing.base, flexGrow: 1, paddingBottom: 100 }}
+          contentContainerStyle={{ 
+            padding: spacing.base, 
+            flexGrow: 1, 
+            paddingBottom: insets.bottom + 100 // BUG: Prevent content cut at bottom
+          }}
           ListEmptyComponent={
             <EmptyState
               icon={<Calendar size={56} color={colors.textMuted} />}
@@ -546,6 +553,6 @@ export default function BookingsScreen() {
         </View>
       </Modal>
 
-    </SafeAreaView>
+    </View>
   );
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View, Text, ScrollView, StatusBar, TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Settings, Users, ShieldCheck } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../theme';
@@ -16,6 +16,7 @@ export default function SettingsScreen() {
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const { user, subscriptionStatus, expiryDate, planName, isAdmin, isSuperAdmin } = useAuth();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
     if (!isAdmin) {
@@ -49,7 +50,7 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <Header 
         title="Control Panel" 
@@ -57,7 +58,11 @@ export default function SettingsScreen() {
         showBack 
       />
 
-      <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>
+      <ScrollView contentContainerStyle={{ 
+        padding: spacing.base, 
+        gap: spacing.base,
+        paddingBottom: insets.bottom + 40
+      }}>
         <View style={{ 
           backgroundColor: colors.primary + '10', 
           padding: spacing.xl, 
@@ -109,6 +114,6 @@ export default function SettingsScreen() {
             <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Hotel Management System v1.0</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

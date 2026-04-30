@@ -8,13 +8,51 @@ import {
   LogoutOutlined,
   BankOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  WarningOutlined
 } from '@ant-design/icons';
+import { Result } from 'antd';
 
-import Dashboard from './pages/Dashboard';
-import Tenants from './pages/Tenants';
-import CreateTenant from './pages/CreateTenant';
-import Login from './pages/Login';
+// BUG-005 & BUG-009: Lazy Loading
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Tenants = React.lazy(() => import('./pages/Tenants'));
+const CreateTenant = React.lazy(() => import('./pages/CreateTenant'));
+const Login = React.lazy(() => import('./pages/Login'));
+
+// BUG-011: NotFound Page
+const NotFound = () => (
+  <Result
+    status="404"
+    title="404"
+    subTitle="Sorry, the page you visited does not exist."
+    extra={<Button type="primary"><Link to="/">Back Home</Link></Button>}
+  />
+);
+
+// BUG-011: Error Boundary Component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <WarningOutlined style={{ fontSize: '48px', color: '#ff4d4f' }} />
+          <Title level={3}>Something went wrong.</Title>
+          <Button type="primary" onClick={() => window.location.reload()}>Reload Page</Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -135,12 +173,19 @@ function AppContent({ onLogout }: { onLogout: () => void }) {
           minHeight: 280,
           overflow: 'initial' 
         }} className="fade-in-content">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tenants" element={<Tenants />} />
-            <Route path="/create-tenant" element={<CreateTenant />} />
-          </Routes>
+          <React.Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <div className="loader">Loading...</div>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/tenants" element={<Tenants />} />
+              <Route path="/create-tenant" element={<CreateTenant />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </React.Suspense>
         </Content>
       </Layout>
     </Layout>
@@ -161,9 +206,13 @@ function App() {
   };
 
   return (
-    <Router>
-      <AppContent onLogout={handleLogout} />
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <AppContent onLogout={handleLogout} />
+        </React.Suspense>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

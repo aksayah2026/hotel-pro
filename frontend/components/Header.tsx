@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../theme';
 import { useNavigation } from '@react-navigation/native';
@@ -15,11 +16,13 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, showBack = fals
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight } = theme;
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{
       paddingHorizontal: spacing.base,
-      paddingVertical: spacing.md,
+      paddingTop: insets.top + 8,
+      paddingBottom: spacing.md,
       backgroundColor: colors.surface,
       flexDirection: 'row',
       alignItems: 'center',

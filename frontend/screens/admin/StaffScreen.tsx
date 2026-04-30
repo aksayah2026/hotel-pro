@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Alert, StatusBar, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Edit3, X, UserPlus, Phone, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { authService, User } from '../../services/authService';
@@ -15,6 +15,7 @@ export default function StaffScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const { user: currentUser, refreshUser } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,21 +97,21 @@ export default function StaffScreen() {
     ]);
   };
 
+  const activeCount = staff.filter(u => u.isActive).length;
+
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Header title="Staff Directory" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const activeCount = staff.filter(u => u.isActive).length;
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <Header 
         title="Staff Storage" 
@@ -126,7 +127,10 @@ export default function StaffScreen() {
       />
 
       <ScrollView 
-        contentContainerStyle={{ padding: spacing.base }}
+        contentContainerStyle={{ 
+          padding: spacing.base,
+          paddingBottom: insets.bottom + 40 
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
       >
         <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.divider }}>
@@ -159,7 +163,7 @@ export default function StaffScreen() {
 
       <Modal visible={staffModalOpen} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: insets.bottom + spacing.xl }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
               <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>{editingStaff ? 'Update User' : 'New User'}</Text>
               <TouchableOpacity onPress={() => setStaffModalOpen(false)} style={{ padding: spacing.sm }}><X size={24} color={colors.textSecondary} /></TouchableOpacity>
@@ -199,6 +203,6 @@ export default function StaffScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -4,6 +4,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
 
 const authRoutes = require('./routes/auth.routes');
 const roomRoutes = require('./routes/room.routes');
@@ -42,6 +45,14 @@ app.options("*", cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
+app.use(cookieParser());
+app.use(helmet());
+
+// BUG-008: CSRF Protection
+app.use(csrf({ cookie: true })); 
+
+// BUG-013: Static files
+app.use(express.static("public"));
 
 // Static files (aadhaar uploads)
 app.use('/uploads', express.static(uploadDir));
@@ -49,10 +60,10 @@ app.use('/uploads', express.static(uploadDir));
 // Public Routes
 app.use('/api/auth', authRoutes);
 
-// Tenant Management (Super Admin)
-app.use('/api/tenants', tenantRoutes);
-app.use('/api/audit-logs', auditLogRoutes);
-app.use('/api/saas-payments', saasPaymentRoutes);
+// Tenant Management (Super Admin) - BUG-001: Protect routes
+app.use('/api/tenants', authenticate, requireSuperAdmin, tenantRoutes);
+app.use('/api/audit-logs', authenticate, requireSuperAdmin, auditLogRoutes);
+app.use('/api/saas-payments', authenticate, requireSuperAdmin, saasPaymentRoutes);
 
 // Protected Routes with Subscription & Read-Only Check
 app.use('/api/rooms', authenticate, checkSubscription, checkReadOnly, roomRoutes);
@@ -65,6 +76,11 @@ app.use('/api/dashboard', authenticate, checkSubscription, dashboardRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// BUG-002: Global 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
 });
 
 // Error handler

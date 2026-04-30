@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HotelPro",
-    "slug": "hotelpro",
+    "slug": "hotel-pro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bharathvsorganization.hotelpro",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +25,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.bharathvsorganization.hotelpro"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +37,12 @@
     "plugins": [
       "expo-secure-store",
       "expo-image-picker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "84d62225-a812-4c61-a354-39683bc6a71f"
+      }
+    },
+    "owner": "bharathvs-organization"
   }
 }
