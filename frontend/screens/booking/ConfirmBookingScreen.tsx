@@ -201,12 +201,50 @@ export default function ConfirmBookingScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
             <Banknote size={18} color={colors.primary} />
             <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
-              Total Amount
+              Billing Summary
             </Text>
           </View>
-          <SummaryRow label="Room Charges" value={`₹${Number(roomAmount || 0).toLocaleString('en-IN')}`} />
-          {Number(discount || 0) > 0 && <SummaryRow label="Discount" value={`-₹${Number(discount).toLocaleString('en-IN')}`} />}
-          <SummaryRow label="Final Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} highlight />
+          
+          <View style={{ marginBottom: spacing.sm }}>
+            <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold as any, marginBottom: spacing.xs, textTransform: 'uppercase' }}>
+              Room Charges
+            </Text>
+            {rooms.map((room: any) => {
+              const price = Number(room.baseTariff || 0);
+              return (
+                <View key={room.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>
+                    Room {room.roomNumber} ({nights} {nights > 1 ? 'nights' : 'night'})
+                  </Text>
+                  <Text style={{ fontSize: fontSize.sm, color: colors.textPrimary }}>
+                    ₹{price.toLocaleString('en-IN')} × {nights} = ₹{(price * nights).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: spacing.sm, marginTop: spacing.xs }}>
+             <SummaryRow label="Subtotal" value={`₹${Number(roomAmount || 0).toLocaleString('en-IN')}`} />
+             {Number(discount || 0) > 0 && (
+               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider }}>
+                 <Text style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Discount</Text>
+                 <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semiBold as any, color: colors.error }}>
+                   -₹{Number(discount).toLocaleString('en-IN')}
+                 </Text>
+               </View>
+             )}
+             
+             <View style={{ 
+               flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+               paddingTop: spacing.md, paddingBottom: spacing.xs 
+             }}>
+               <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Total Amount</Text>
+               <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.extraBold as any, color: colors.primary }}>
+                 ₹{totalAmount.toLocaleString('en-IN')}
+               </Text>
+             </View>
+          </View>
         </Card>
 
         {/* Payment Options */}

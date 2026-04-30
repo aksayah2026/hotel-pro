@@ -22,28 +22,41 @@ const getDashboardStats = async (req, res) => {
       occupiedRooms,
       cleaningRooms,
       totalBookings,
-      todayCheckIns,
-      todayCheckOuts,
-      pendingPayments,
+      todayIncoming,
+      todayOutgoing,
+      todayTransactions,
       revenueResult,
+      pendingPayments,
     ] = await Promise.all([
       prisma.room.count({ where: { ...tenantFilter, isActive: true } }),
       prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'AVAILABLE' } }),
       prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'OCCUPIED' } }),
       prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'CLEANING' } }),
       prisma.booking.count({ where: { ...tenantFilter, status: { in: ['BOOKED', 'CHECKED_IN'] } } }),
+      
+      // Incoming: Booked to arrive today
       prisma.booking.count({
-        where: { ...tenantFilter, checkInDate: { gte: today, lt: tomorrow }, status: { in: ['BOOKED', 'CHECKED_IN'] } },
+        where: { ...tenantFilter, checkInDate: { gte: today, lt: tomorrow }, status: 'BOOKED' },
       }),
+      
+      // Outgoing: Scheduled to checkout today (whether already left or still here)
       prisma.booking.count({
-        where: { ...tenantFilter, checkOutDate: { gte: today, lt: tomorrow }, status: 'CHECKED_IN' },
+        where: { ...tenantFilter, checkOutDate: { gte: today, lt: tomorrow }, status: { in: ['CHECKED_IN', 'COMPLETED'] } },
       }),
-      prisma.booking.count({
-        where: { ...tenantFilter, paymentStatus: { in: ['PENDING', 'PARTIAL'] }, status: { in: ['BOOKED', 'CHECKED_IN'] } },
+
+      // Transactions: Count of payments today
+      prisma.payment.count({
+        where: { ...bookingTenantFilter, paidAt: { gte: today, lt: tomorrow } },
       }),
+
+      // Revenue Sum
       prisma.payment.aggregate({
         _sum: { amount: true },
         where: { ...bookingTenantFilter, paidAt: { gte: today, lt: tomorrow } },
+      }),
+
+      prisma.booking.count({
+        where: { ...tenantFilter, paymentStatus: { in: ['PENDING', 'PARTIAL'] }, status: { in: ['BOOKED', 'CHECKED_IN'] } },
       }),
     ]);
 
@@ -74,7 +87,13 @@ const getDashboardStats = async (req, res) => {
       success: true,
       data: {
         rooms: { total: totalRooms, available: availableRooms, occupied: occupiedRooms, cleaning: cleaningRooms },
-        bookings: { active: totalBookings, todayCheckIns, todayCheckOuts, pendingPayments },
+        bookings: { 
+          active: totalBookings, 
+          todayCheckIns: todayIncoming, 
+          todayCheckOuts: todayOutgoing, 
+          transactions: todayTransactions,
+          pendingPayments 
+        },
         revenue: {
           today: parseFloat(revenueResult._sum.amount || 0),
           byMode: revenueByMode.map((r) => ({ mode: r.mode, amount: parseFloat(r._sum.amount || 0) })),

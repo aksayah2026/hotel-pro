@@ -29,6 +29,7 @@ export default function BookingDetailScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const navigation = useNavigation<any>();
+  const insets     = useSafeAreaInsets();
   const route      = useRoute<any>();
   const bookingId  = route?.params?.bookingId;
 
@@ -124,20 +125,31 @@ export default function BookingDetailScreen() {
   };
   
   const handleAddExtraCharge = async () => {
-    if (!extraLabel || !extraAmount) {
-      Alert.alert('Missing Info', 'Please enter both label and amount.');
+    const amount = parseFloat(extraAmount);
+    if (!extraLabel || isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid description and an amount greater than zero.');
       return;
     }
     setActionLoading(true);
     try {
-      await bookingService.addExtraCharge(bookingId, extraLabel, parseFloat(extraAmount));
+      await bookingService.addExtraCharge(bookingId, extraLabel, amount);
+      
+      // Fetch updated booking to show new total in success message
+      const res = await bookingService.getById(bookingId);
+      const updatedBooking = res.data.data;
+      setBooking(updatedBooking);
+
       setShowExtraModal(false);
       setExtraLabel('');
       setExtraAmount('');
-      fetch();
-      Alert.alert('Success', 'Extra charge added.');
+      
+      Alert.alert(
+        '✅ Success',
+        `Extra charge added successfully\n\n💰 Amount: ₹${amount.toLocaleString('en-IN')}\n🧾 Updated Total: ₹${Number(updatedBooking.totalAmount).toLocaleString('en-IN')}`,
+        [{ text: 'OK' }]
+      );
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add extra charge');
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add extra charge. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -345,13 +357,15 @@ export default function BookingDetailScreen() {
           )}
         </Card>
 
-        <View style={{ height: spacing.xl }} />
+        <View style={{ height: spacing.xl * 4 }} />
       </ScrollView>
 
       {/* Action Buttons */}
       {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
         <View style={{
-          padding: spacing.base, backgroundColor: colors.surface,
+          padding: spacing.base, 
+          paddingBottom: Math.max(insets.bottom, spacing.base),
+          backgroundColor: colors.surface,
           borderTopWidth: 1, borderTopColor: colors.divider,
           gap: spacing.sm, ...theme.shadow.lg,
         }}>
@@ -427,7 +441,8 @@ export default function BookingDetailScreen() {
       <View>
         <Modal visible={showExtraModal} animationType="slide" transparent>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg }}>
-            <Card style={{ padding: spacing.lg, borderRadius: radius.xl }}>
+            <Card style={{ padding: spacing.lg, borderRadius: radius.xl, maxHeight: '80%' }}>
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
                  <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Add Extra Charge</Text>
                  <TouchableOpacity onPress={() => setShowExtraModal(false)}><X size={24} color={colors.textMuted} /></TouchableOpacity>
@@ -461,8 +476,9 @@ export default function BookingDetailScreen() {
                     onPress={() => setShowExtraModal(false)} 
                     fullWidth 
                     textStyle={{ color: colors.textMuted }}
-                  />
+                   />
                </View>
+              </ScrollView>
             </Card>
           </View>
         </Modal>

@@ -189,7 +189,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </Card>
           <Card style={{ flex: 1, alignItems: 'center', padding: spacing.md }}>
             <Text style={{ fontSize: fontSize.lg, marginBottom: 4 }}>💳</Text>
-            <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.success }}>{revenue?.modeSplit.length ?? 0}</Text>
+            <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.success }}>{data?.bookings.transactions ?? 0}</Text>
             <Text style={{ fontSize: 10, color: colors.textMuted }}>TRANSACTIONS</Text>
           </Card>
         </View>

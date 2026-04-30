@@ -264,7 +264,7 @@ export default function AddRoomScreen() {
           size="lg" 
           disabled={roomTypes.length === 0 && !isEdit}
         />
-        <View style={{ height: spacing.xl }} />
+        <View style={{ height: spacing.xl * 4 }} />
       </ScrollView>
     </SafeAreaView>
   );

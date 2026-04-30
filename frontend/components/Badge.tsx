@@ -4,7 +4,7 @@ import { useTheme } from '../theme';
 
 type BadgeVariant = 'available' | 'occupied' | 'cleaning' | 'maintenance' |
                    'booked' | 'checked_in' | 'completed' | 'cancelled' |
-                   'paid' | 'partial' | 'pending' | 'default';
+                   'paid' | 'partial' | 'pending' | 'default' | 'error' | 'success';
 
 interface BadgeProps {
   label: string;
@@ -29,6 +29,8 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', size =
     partial:     { bg: colors.warning,       text: colors.textOnPrimary },
     pending:     { bg: colors.error,         text: colors.textOnPrimary },
     default:     { bg: colors.neutral,       text: colors.textOnPrimary },
+    error:       { bg: colors.error,         text: colors.textOnPrimary },
+    success:     { bg: colors.success,       text: colors.textOnPrimary },
   };
 
   const { bg, text } = colorMap[variant] ?? colorMap.default;

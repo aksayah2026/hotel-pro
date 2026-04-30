@@ -31,52 +31,32 @@ export default function EnterAmountScreen() {
   const nights = route?.params?.nights;
   const customer = route?.params?.customer;
 
-  const [discountStr, setDiscountStr] = useState('');
-  const [discountError, setDiscountError] = useState('');
-
-  // Auto-calculation
-  const roomSubtotal = rooms.reduce((sum: number, r: Room) => sum + (Number(r.baseTariff) || 0), 0) * nights;
-  const discountVal  = parseFloat(discountStr) || 0;
-  const finalAmount  = roomSubtotal - discountVal;
-
-  if (!rooms || !checkIn || !checkOut || !nights || !customer) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
-           <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.error }}>Invalid Navigation</Text>
-           <Text style={{ fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm }}>
-             Missing booking parameters. Please restart the booking process.
-           </Text>
-           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: spacing.xl, padding: spacing.md, backgroundColor: colors.primary, borderRadius: radius.md }}>
-             <Text style={{ color: colors.textOnPrimary, fontWeight: fontWeight.bold as any }}>Go Back</Text>
-           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const validate = () => {
-    if (discountStr && (isNaN(discountVal) || discountVal < 0)) {
-       setDiscountError('Enter a valid discount');
-       return false;
+  const handleDiscountChange = (val: string) => {
+    // Remove non-numeric characters and leading zeros
+    const cleanVal = val.replace(/[^0-9]/g, '').replace(/^0+/, '') || (val === '0' ? '0' : '');
+    setDiscountStr(cleanVal);
+    
+    const valNum = parseFloat(cleanVal) || 0;
+    if (valNum < 0) {
+      setDiscountError('Invalid discount amount');
+    } else if (valNum > roomSubtotal) {
+      setDiscountError('Discount cannot be greater than total amount');
+    } else {
+      setDiscountError('');
     }
-    if (finalAmount < 0) {
-       setDiscountError('Discount cannot be more than room subtotal');
-       return false;
-    }
-    setDiscountError('');
-    return true;
   };
 
   const handleNext = () => {
-    if (!validate()) return;
+    if (discountError || finalAmount < 0) return;
     navigation.navigate('ConfirmBooking', {
       rooms, checkIn, checkOut, nights, customer,
       roomAmount: roomSubtotal,
       discount: discountVal,
-      totalAmount: finalAmount,
+      totalAmount: Math.max(0, finalAmount),
     });
   };
+
+  const isInvalid = !!discountError || (discountStr !== '' && isNaN(discountVal));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -116,7 +96,7 @@ export default function EnterAmountScreen() {
                label="Discount (₹)"
                placeholder="Enter discount amount"
                value={discountStr}
-               onChangeText={setDiscountStr}
+               onChangeText={handleDiscountChange}
                keyboardType="numeric"
                error={discountError}
                containerStyle={{ marginTop: spacing.sm }}
@@ -133,8 +113,8 @@ export default function EnterAmountScreen() {
                alignItems: 'center' 
              }}>
                <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Total Amount</Text>
-               <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.extraBold as any, color: colors.primary }}>
-                 ₹{finalAmount.toLocaleString('en-IN')}
+               <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.extraBold as any, color: isInvalid ? colors.textMuted : colors.primary }}>
+                 ₹{Math.max(0, finalAmount).toLocaleString('en-IN')}
                </Text>
              </View>
           </View>
@@ -152,6 +132,8 @@ export default function EnterAmountScreen() {
           label="Continue to Confirmation"
           onPress={handleNext}
           fullWidth size="lg"
+          disabled={isInvalid}
+          style={{ opacity: isInvalid ? 0.5 : 1 }}
           icon={<ChevronRight size={20} color={colors.textOnPrimary} />}
         />
       </View>

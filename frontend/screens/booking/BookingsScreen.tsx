@@ -419,7 +419,13 @@ export default function BookingsScreen() {
       {/* Filter Modal */}
       <Modal visible={showFilters} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: spacing.xl * 2 }}>
+          <View style={{ 
+            backgroundColor: colors.surface, 
+            borderTopLeftRadius: radius.xl, 
+            borderTopRightRadius: radius.xl, 
+            padding: spacing.lg, 
+            paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl * 2) 
+          }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
               <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Advanced Filters</Text>
               <TouchableOpacity onPress={() => setShowFilters(false)}><X size={24} color={colors.textMuted} /></TouchableOpacity>
