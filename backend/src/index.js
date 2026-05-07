@@ -49,6 +49,16 @@ app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(helmet());
 
+// API Response Time Logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[API] ${req.method} ${req.originalUrl} - ${duration}ms`);
+  });
+  next();
+});
+
 // BUG-008: CSRF Protection with Production-Ready Cookie Config
 const csrfProtection = csrf({ 
   cookie: {

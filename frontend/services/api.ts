@@ -1,11 +1,12 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 
 // 🔧 UPDATE THIS to your machine's IP when testing on device
-// export const BASE_URL = 'http://localhost:5000/api';
+export const BASE_URL = 'http://192.168.0.102:5000/api';
 
 // Live hosted
-export const BASE_URL = 'https://api.hotelpro.aksayah.com/api';
+// export const BASE_URL = 'https://api.hotelpro.aksayah.com/api';
 
 
 const api = axios.create({
@@ -28,6 +29,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('auth_user');
+      await AsyncStorage.removeItem('auth_tenant');
+      await AsyncStorage.removeItem('auth_subscription');
+      await AsyncStorage.removeItem('auth_expiry');
+      await AsyncStorage.removeItem('auth_plan');
+      DeviceEventEmitter.emit('auth_error');
     }
     return Promise.reject(error);
   }

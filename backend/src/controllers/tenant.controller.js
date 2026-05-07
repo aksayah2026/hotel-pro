@@ -250,7 +250,7 @@ const updateTenant = async (req, res) => {
     const { id } = req.params;
     const { 
       businessName, ownerName, address, phoneNumber, 
-      mobile, isActive, isBlocked, accessLevel 
+      mobile, isActive, isBlocked, accessLevel, password
     } = req.body;
 
     let cleanMobile = mobile;
@@ -261,15 +261,28 @@ const updateTenant = async (req, res) => {
       }
     }
 
+    const updateData = {
+      businessName, ownerName, address, phoneNumber, 
+      mobile: cleanMobile, isActive, isBlocked, accessLevel
+    };
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      updateData.password = hashedPassword;
+      console.log("Updated hashed password:", hashedPassword);
+      
+      await prisma.user.updateMany({
+        where: { tenantId: id, role: 'TENANT_ADMIN' },
+        data: { password: hashedPassword }
+      });
+    }
+
     const tenant = await prisma.tenant.update({
       where: { id },
-      data: {
-        businessName, ownerName, address, phoneNumber, 
-        mobile: cleanMobile, isActive, isBlocked, accessLevel
-      }
+      data: updateData
     });
 
-    await logAction(req.user.id, 'UPDATE_TENANT', 'TENANT', id, req.body, id);
+    await logAction(req.user.id, 'UPDATE_TENANT', 'TENANT', id, { ...req.body, password: password ? '***' : undefined }, id);
 
     res.json({ success: true, data: tenant });
   } catch (error) {

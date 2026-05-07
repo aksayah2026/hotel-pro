@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import api from '../api';
 
 import { 
@@ -18,10 +18,8 @@ import {
   DownloadOutlined,
   CloseCircleOutlined
 } from '@ant-design/icons';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, BarChart, Bar, Cell, Legend 
-} from 'recharts';
+const RevenueChart = React.lazy(() => import('../components/RevenueChart'));
+const PlanChart = React.lazy(() => import('../components/PlanChart'));
 import dayjs from 'dayjs';
 import { API_URL } from '../config';
 
@@ -52,6 +50,7 @@ export default function Dashboard() {
 
 
   const [loading, setLoading] = useState(true);
+  const [loadCharts, setLoadCharts] = useState(false);
   const [filter, setFilter] = useState({
     type: 'monthly',
     year: dayjs().year(),
@@ -77,6 +76,13 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, [filter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadCharts(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const columns = [
     {
@@ -196,43 +202,18 @@ export default function Dashboard() {
         <Col xs={24} lg={16}>
           <Card title="Revenue Growth Trend" variant="borderless" extra={<Text type="secondary">Financial Year {filter.year}</Text>}>
             <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.monthlyRevenue}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <RechartsTooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#1890ff" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: '#1890ff' }}
-                    activeDot={{ r: 6 }} 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
+                {loadCharts && <RevenueChart data={data.monthlyRevenue} />}
+              </Suspense>
             </div>
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Plan Breakdown" variant="borderless">
             <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.planWise}>
-                  <XAxis dataKey="plan" hide />
-                  <YAxis hide />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                    {data.planWise.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
+                {loadCharts && <PlanChart data={data.planWise} />}
+              </Suspense>
             </div>
           </Card>
         </Col>

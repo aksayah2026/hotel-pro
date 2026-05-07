@@ -7,24 +7,30 @@ const checkSubscription = async (req, res, next) => {
       return next();
     }
 
+    // Skip validation for lightweight GET APIs
+    const skipPaths = ['/api/room-types', '/api/amenities'];
+    if (req.method === 'GET' && skipPaths.some(path => req.baseUrl.includes(path) || req.originalUrl.includes(path))) {
+      return next();
+    }
+
     const tenantId = req.user.tenantId;
     if (!tenantId) {
       return res.status(403).json({ success: false, message: 'Tenant context missing' });
     }
 
-    // Find latest active subscription
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        tenantId: tenantId,
-        status: 'ACTIVE',
-        endDate: { gte: new Date() }
-      }
-    });
-
-    if (!subscription) {
+    // Validate using JWT payload
+    if (req.user.subscriptionStatus !== 'ACTIVE') {
       return res.status(403).json({ 
         success: false, 
-        message: 'Subscription expired or inactive. Please contact Super Admin.',
+        message: 'Subscription inactive. Please contact Super Admin.',
+        subscriptionStatus: 'EXPIRED'
+      });
+    }
+
+    if (req.user.subscriptionEndDate && new Date(req.user.subscriptionEndDate) < new Date()) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Subscription expired. Please contact Super Admin.',
         subscriptionStatus: 'EXPIRED'
       });
     }

@@ -16,6 +16,10 @@ const getDashboardStats = async (req, res) => {
     const tenantFilter = { tenantId };
     const bookingTenantFilter = { booking: { tenantId } };
 
+    // Monthly revenue (last 7 days)
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
     const [
       totalRooms,
       availableRooms,
@@ -27,6 +31,8 @@ const getDashboardStats = async (req, res) => {
       todayTransactions,
       revenueResult,
       pendingPayments,
+      weeklyRevenue,
+      revenueByMode,
     ] = await Promise.all([
       prisma.room.count({ where: { ...tenantFilter, isActive: true } }),
       prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'AVAILABLE' } }),
@@ -58,29 +64,25 @@ const getDashboardStats = async (req, res) => {
       prisma.booking.count({
         where: { ...tenantFilter, paymentStatus: { in: ['PENDING', 'PARTIAL'] }, status: { in: ['BOOKED', 'CHECKED_IN'] } },
       }),
+
+      prisma.payment.groupBy({
+        by: ['paidAt'],
+        _sum: { amount: true },
+        where: { paidAt: { gte: sevenDaysAgo } },
+        orderBy: { paidAt: 'asc' },
+      }),
+
+      prisma.payment.groupBy({
+        by: ['mode'],
+        _sum: { amount: true },
+        where: {
+          ...bookingTenantFilter,
+          paidAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        },
+      })
     ]);
 
 
-    // Monthly revenue (last 7 days)
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-
-    const weeklyRevenue = await prisma.payment.groupBy({
-      by: ['paidAt'],
-      _sum: { amount: true },
-      where: { paidAt: { gte: sevenDaysAgo } },
-      orderBy: { paidAt: 'asc' },
-    });
-
-    // Revenue by payment mode
-    const revenueByMode = await prisma.payment.groupBy({
-      by: ['mode'],
-      _sum: { amount: true },
-      where: {
-        ...bookingTenantFilter,
-        paidAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-      },
-    });
 
 
     res.json({

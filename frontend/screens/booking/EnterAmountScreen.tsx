@@ -31,6 +31,14 @@ export default function EnterAmountScreen() {
   const nights = route?.params?.nights;
   const customer = route?.params?.customer;
 
+  const [discountStr, setDiscountStr] = useState('');
+  const [discountError, setDiscountError] = useState('');
+
+  // Auto-calculation
+  const roomSubtotal = rooms.reduce((sum: number, r: Room) => sum + (Number(r.baseTariff) || 0), 0) * nights;
+  const discountVal  = parseFloat(discountStr) || 0;
+  const finalAmount  = roomSubtotal - discountVal;
+
   const handleDiscountChange = (val: string) => {
     // Remove non-numeric characters and leading zeros
     const cleanVal = val.replace(/[^0-9]/g, '').replace(/^0+/, '') || (val === '0' ? '0' : '');

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StatusBar, Alert, TouchableOpacity, Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LogIn, LogOut, XCircle, CreditCard, Phone, User, BedDouble, Download, Plus, X, Banknote } from 'lucide-react-native';
 import { Linking } from 'react-native';

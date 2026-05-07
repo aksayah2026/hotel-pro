@@ -202,6 +202,8 @@ model Room {
   bookingRooms BookingRoom[]
 
   @@unique([tenantId, roomNumber])
+  @@index([tenantId])
+  @@index([status])
   @@map("rooms")
 }
 
@@ -233,6 +235,10 @@ model Booking {
   payments     Payment[]
   extraCharges ExtraCharge[]
 
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId])
   @@map("bookings")
 }
 
@@ -245,6 +251,8 @@ model BookingRoom {
   room    Room    @relation(fields: [roomId], references: [id])
 
   @@unique([bookingId, roomId])
+  @@index([bookingId])
+  @@index([roomId])
   @@map("booking_rooms")
 }
 
@@ -277,6 +285,8 @@ model Payment {
 
   booking Booking @relation(fields: [bookingId], references: [id])
 
+  @@index([bookingId])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -306,6 +316,8 @@ model SaaSPayment {
   plan      SubscriptionPlan @relation(fields: [planId], references: [id])
   invoice   SaaSInvoice?
 
+  @@index([tenantId])
+  @@index([createdAt])
   @@map("saas_payments")
 }
 
@@ -339,5 +351,8 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id])
 
+  @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("audit_logs")
 }

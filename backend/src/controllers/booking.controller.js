@@ -74,8 +74,8 @@ const getAllBookings = async (req, res) => {
         include: {
           bookingRooms: { include: { room: { select: { roomNumber: true, roomType: { select: { name: true } }, floor: true } } } },
           customer: { select: { name: true, mobile: true } },
-          payments: true,
-          extraCharges: true,
+          payments: { select: { amount: true } },
+          extraCharges: { select: { amount: true } },
         },
         orderBy: { [sort]: 'desc' },
         skip: (parseInt(page) - 1) * parseInt(limit),
@@ -457,26 +457,27 @@ const cancelBooking = async (req, res) => {
 
       const roomIds = booking.bookingRooms.map((br) => br.roomId);
 
-      for (const roomId of roomIds) {
-        // Check if any OTHER active booking exists for this room
-        const activeStay = await tx.bookingRoom.findFirst({
-          where: {
-            roomId,
-            booking: {
-              id: { not: booking.id },
-              status: 'CHECKED_IN',
-              tenantId: req.user.tenantId
-            }
+      // Check if any OTHER active booking exists for these rooms
+      const activeStays = await tx.bookingRoom.findMany({
+        where: {
+          roomId: { in: roomIds },
+          booking: {
+            id: { not: booking.id },
+            status: 'CHECKED_IN',
+            tenantId: req.user.tenantId
           }
-        });
+        },
+        select: { roomId: true }
+      });
 
-        // If no other guest is currently in this room
-        if (!activeStay) {
-          await tx.room.update({
-            where: { id: roomId },
-            data: { status: booking.status === 'CHECKED_IN' ? 'CLEANING' : 'AVAILABLE' },
-          });
-        }
+      const activeRoomIds = activeStays.map(s => s.roomId);
+      const roomsToUpdate = roomIds.filter(id => !activeRoomIds.includes(id));
+
+      if (roomsToUpdate.length > 0) {
+        await tx.room.updateMany({
+          where: { id: { in: roomsToUpdate } },
+          data: { status: booking.status === 'CHECKED_IN' ? 'CLEANING' : 'AVAILABLE' },
+        });
       }
 
       return b;

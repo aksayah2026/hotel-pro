@@ -2,8 +2,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+const generateToken = (user, subscriptionStatus = 'ACTIVE', subscriptionEndDate = null) => {
+  return jwt.sign({ 
+    userId: user.id,
+    tenantId: user.tenantId,
+    role: user.role,
+    accessLevel: user.tenant?.accessLevel || 'FULL',
+    subscriptionStatus,
+    subscriptionEndDate
+  }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 };
@@ -83,7 +90,7 @@ const login = async (req, res) => {
       }
     }
 
-    const token = generateToken(user.id);
+    const token = generateToken(user, subscriptionStatus, expiryDate);
 
     // BUG-006: Set HttpOnly cookie
     res.cookie("token", token, {

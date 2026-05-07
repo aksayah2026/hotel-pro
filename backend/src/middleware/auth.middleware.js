@@ -18,32 +18,14 @@ const authenticate = async (req, res, next) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: { tenant: true }
-    });
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({ success: false, message: 'User not found or inactive' });
-    }
-
-    if (user.tenant) {
-      if (user.tenant.isDeleted) {
-        return res.status(403).json({ success: false, message: 'Account deleted' });
-      }
-      if (user.tenant.isBlocked) {
-        return res.status(403).json({ success: false, message: 'Account blocked' });
-      }
-    }
-
-    // Attach user and tenant info to request
+    // Attach user and tenant info to request directly from token
     req.user = {
-      id: user.id,
-      name: user.name,
-      mobile: user.mobile,
-      role: user.role,
-      tenantId: user.tenantId,
-      tenant: user.tenant
+      id: decoded.userId,
+      role: decoded.role,
+      tenantId: decoded.tenantId,
+      tenant: { accessLevel: decoded.accessLevel },
+      subscriptionStatus: decoded.subscriptionStatus,
+      subscriptionEndDate: decoded.subscriptionEndDate
     };
 
     next();

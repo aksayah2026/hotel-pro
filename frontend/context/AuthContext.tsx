@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService, User, Tenant } from '../services/authService';
 
@@ -30,6 +31,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     loadStoredAuth();
+    
+    const subscription = DeviceEventEmitter.addListener('auth_error', () => {
+      logout();
+    });
+    
+    return () => subscription.remove();
   }, []);
 
   const loadStoredAuth = async () => {

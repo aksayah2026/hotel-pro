@@ -189,7 +189,8 @@ export default function Tenants() {
       address: record.address,
       phoneNumber: record.phoneNumber,
       mobile: record.mobile,
-      planId: latestSub?.planId
+      planId: latestSub?.planId,
+      password: ""
     });
     setEditVisible(true);
   };
@@ -206,6 +207,7 @@ export default function Tenants() {
       await api.put(`/tenants/${selectedTenant.id}`, values);
       message.success('Tenant updated successfully');
       setEditVisible(false);
+      form.resetFields(["password"]);
       fetchTenants();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Update failed');
@@ -553,7 +555,10 @@ export default function Tenants() {
       <Modal
         title="Edit Tenant Details"
         open={editVisible}
-        onCancel={() => setEditVisible(false)}
+        onCancel={() => {
+          setEditVisible(false);
+          form.resetFields(["password"]);
+        }}
         onOk={() => form.submit()}
         confirmLoading={submitLoading}
         width={600}
@@ -585,8 +590,8 @@ export default function Tenants() {
           <Form.Item name="mobile" label="Mobile Number (Unique)">
             <Input disabled />
           </Form.Item>
-          <Form.Item name="password" label="Reset Password (Optional)">
-            <Input.Password placeholder="Leave blank to keep current" />
+          <Form.Item name="password" label="Set New Password (Optional)">
+            <Input.Password placeholder="Enter new password" />
           </Form.Item>
 
           <Title level={5} style={{ marginTop: '16px' }}>Subscription</Title>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import api from '../api';
 import { 
   Card, Row, Col, Statistic, Typography, Table, Tag, 
@@ -12,10 +12,8 @@ import {
   BankOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, BarChart, Bar, Cell, Legend 
-} from 'recharts';
+const RevenueChart = React.lazy(() => import('../components/RevenueChart'));
+const PlanChart = React.lazy(() => import('../components/PlanChart'));
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -26,6 +24,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 export default function PlatformRevenue() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadCharts, setLoadCharts] = useState(false);
   const [year, setYear] = useState(dayjs().year());
 
   const fetchRevenue = async () => {
@@ -43,6 +42,13 @@ export default function PlatformRevenue() {
   useEffect(() => {
     fetchRevenue();
   }, [year]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadCharts(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!data && !loading) return <Empty description="Failed to load revenue data" />;
 
@@ -104,41 +110,18 @@ export default function PlatformRevenue() {
         <Col span={16}>
           <Card title={<span><LineChartOutlined /> Revenue Trend ({year})</span>} bordered={false}>
             <div style={{ height: 350 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data?.monthlyRevenue}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(val) => `₹${val}`} />
-                  <RechartsTooltip formatter={(val: any) => `₹${val.toLocaleString()}`} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#1890ff" 
-                    strokeWidth={3}
-                    dot={{ r: 6 }}
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
+                {loadCharts && <RevenueChart data={data?.monthlyRevenue || []} />}
+              </Suspense>
             </div>
           </Card>
         </Col>
         <Col span={8}>
           <Card title={<span><BarChartOutlined /> Plan Breakdown</span>} bordered={false}>
             <div style={{ height: 350 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.planWise}>
-                  <XAxis dataKey="plan" hide />
-                  <YAxis />
-                  <RechartsTooltip formatter={(val: any) => `₹${val.toLocaleString()}`} />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                    {data?.planWise.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                  <Legend />
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
+                {loadCharts && <PlanChart data={data?.planWise || []} />}
+              </Suspense>
             </div>
           </Card>
         </Col>
