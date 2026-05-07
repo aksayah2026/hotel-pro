@@ -89,6 +89,9 @@ model Tenant {
   saasPayments   SaaSPayment[]
   saasInvoices   SaaSInvoice[]
 
+  @@index([isDeleted])
+  @@index([isActive])
+  @@index([createdAt])
   @@map("tenants")
 }
 
@@ -114,6 +117,9 @@ model SubscriptionPlan {
   subscriptions  Subscription[]
   saasPayments   SaaSPayment[]
 
+  @@index([isTrial])
+  @@index([isCustom])
+  @@index([durationInDays])
   @@map("subscription_plans")
 }
 
@@ -130,6 +136,9 @@ model Subscription {
   tenant Tenant           @relation(fields: [tenantId], references: [id])
   plan   SubscriptionPlan @relation(fields: [planId], references: [id])
 
+  @@index([tenantId])
+  @@index([status])
+  @@index([endDate])
   @@map("subscriptions")
 }
 
@@ -154,6 +163,9 @@ model User {
   bookings  Booking[]
   auditLogs AuditLog[]
 
+  @@index([tenantId])
+  @@index([isDeleted])
+  @@index([mobile])
   @@map("users")
 }
 
@@ -318,6 +330,8 @@ model SaaSPayment {
 
   @@index([tenantId])
   @@index([createdAt])
+  @@index([status])
+  @@index([paidAt])
   @@map("saas_payments")
 }
 
@@ -336,6 +350,8 @@ model SaaSInvoice {
   tenant  Tenant       @relation(fields: [tenantId], references: [id])
   payment SaaSPayment? @relation(fields: [paymentId], references: [id])
 
+  @@index([tenantId])
+  @@index([paymentId])
   @@map("saas_invoices")
 }
 

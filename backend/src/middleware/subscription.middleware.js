@@ -18,8 +18,20 @@ const checkSubscription = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Tenant context missing' });
     }
 
-    // Validate using JWT payload
-    if (req.user.subscriptionStatus !== 'ACTIVE') {
+    // Validate using JWT payload with DB fallback for old tokens
+    let status = req.user.subscriptionStatus;
+    let endDate = req.user.subscriptionEndDate;
+
+    if (status === undefined) {
+      const sub = await prisma.subscription.findFirst({
+        where: { tenantId, status: 'ACTIVE' },
+        orderBy: { endDate: 'desc' }
+      });
+      status = sub ? sub.status : 'INACTIVE';
+      endDate = sub ? sub.endDate : null;
+    }
+
+    if (status !== 'ACTIVE') {
       return res.status(403).json({ 
         success: false, 
         message: 'Subscription inactive. Please contact Super Admin.',
@@ -27,7 +39,7 @@ const checkSubscription = async (req, res, next) => {
       });
     }
 
-    if (req.user.subscriptionEndDate && new Date(req.user.subscriptionEndDate) < new Date()) {
+    if (endDate && new Date(endDate) < new Date()) {
       return res.status(403).json({ 
         success: false, 
         message: 'Subscription expired. Please contact Super Admin.',

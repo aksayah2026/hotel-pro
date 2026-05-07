@@ -1,12 +1,26 @@
 const prisma = require('../lib/prisma');
 
+// Simple in-memory cache (5 mins)
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000;
+
 // GET /api/room-types
 const getAllRoomTypes = async (req, res) => {
   try {
+    const cacheKey = `roomTypes:${req.user.tenantId}`;
+    const cached = cache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
+      return res.json({ success: true, data: cached.data });
+    }
+
     const types = await prisma.roomType.findMany({
       where: { tenantId: req.user.tenantId },
       orderBy: { name: 'asc' },
     });
+    
+    cache.set(cacheKey, { data: types, timestamp: Date.now() });
+    
     res.json({ success: true, data: types });
 
   } catch (error) {
@@ -39,6 +53,10 @@ const createRoomType = async (req, res) => {
         tenantId: req.user.tenantId
       },
     });
+    
+    // Invalidate cache
+    cache.delete(`roomTypes:${req.user.tenantId}`);
+    
     res.status(201).json({ success: true, data: type });
 
   } catch (error) {
@@ -65,6 +83,10 @@ const deleteRoomType = async (req, res) => {
     }
 
     await prisma.roomType.delete({ where: { id } });
+    
+    // Invalidate cache
+    cache.delete(`roomTypes:${req.user.tenantId}`);
+    
     res.json({ success: true, message: 'Room type deleted successfully' });
 
   } catch (error) {

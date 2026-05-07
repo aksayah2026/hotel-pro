@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Skeleton } from 'antd';
 import { 
   DashboardOutlined, 
   TeamOutlined, 
@@ -174,17 +174,19 @@ function AppContent({ onLogout }: { onLogout: () => void }) {
           overflow: 'initial' 
         }} className="fade-in-content">
           <React.Suspense fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <div className="loader">Loading...</div>
+            <div style={{ padding: '24px' }}>
+              <Skeleton active paragraph={{ rows: 12 }} />
             </div>
           }>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/tenants" element={<Tenants />} />
-              <Route path="/create-tenant" element={<CreateTenant />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/tenants" element={<Tenants />} />
+                <Route path="/create-tenant" element={<CreateTenant />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ErrorBoundary>
           </React.Suspense>
         </Content>
       </Layout>

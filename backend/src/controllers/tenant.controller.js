@@ -2,16 +2,30 @@ const prisma = require('../lib/prisma');
 const bcrypt = require('bcryptjs');
 const { logAction } = require('../utils/audit');
 
+// Cache for plans API
+let plansCache = null;
+let plansCacheTime = 0;
+
 // GET /api/tenants/plans
 const getPlans = async (req, res) => {
   try {
+    if (plansCache && Date.now() - plansCacheTime < 10 * 60 * 1000) {
+      return res.json({ success: true, data: plansCache });
+    }
+
     const plans = await prisma.subscriptionPlan.findMany({
-      orderBy: [
-        { isTrial: 'desc' },
-        { isCustom: 'desc' },
-        { durationInDays: 'asc' }
-      ]
+      select: {
+        id: true,
+        name: true,
+        durationInDays: true,
+        price: true,
+        isTrial: true
+      }
     });
+    
+    plansCache = plans;
+    plansCacheTime = Date.now();
+
     res.json({ success: true, data: plans });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -197,8 +211,26 @@ const getAllTenants = async (req, res) => {
     const [tenants, total] = await Promise.all([
       prisma.tenant.findMany({
         where,
-        include: {
-          subscriptions: { orderBy: { endDate: 'desc' }, take: 1, include: { plan: true } }
+        select: {
+          id: true,
+          businessName: true,
+          ownerName: true,
+          mobile: true,
+          isActive: true,
+          isBlocked: true,
+          accessLevel: true,
+          isSystem: true,
+          totalBookings: true,
+          createdAt: true,
+          subscriptions: { 
+            orderBy: { endDate: 'desc' }, 
+            take: 1, 
+            select: { 
+              status: true, 
+              endDate: true, 
+              plan: { select: { name: true } } 
+            } 
+          }
         },
         orderBy,
         skip,

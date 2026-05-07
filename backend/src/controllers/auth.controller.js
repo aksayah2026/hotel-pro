@@ -127,13 +127,21 @@ const login = async (req, res) => {
 // GET /api/auth/profile
 const getProfile = async (req, res) => {
   try {
-    const user = req.user;
+    const dbUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { tenant: true }
+    });
+
+    if (!dbUser || dbUser.isDeleted) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
     let subscriptionStatus = 'ACTIVE';
     let expiryDate = null;
     let planName = null;
     
-    if (user.tenantId) {
-      const isSystem = user.tenant?.isSystem || user.tenant?.businessName === 'HotelPro Systems';
+    if (dbUser.tenantId) {
+      const isSystem = dbUser.tenant?.isSystem || dbUser.tenant?.businessName === 'HotelPro Systems';
       
       if (isSystem) {
         subscriptionStatus = 'ACTIVE';
@@ -141,7 +149,7 @@ const getProfile = async (req, res) => {
         planName = 'SYSTEM';
       } else {
         const sub = await prisma.subscription.findFirst({
-          where: { tenantId: user.tenantId, status: 'ACTIVE' },
+          where: { tenantId: dbUser.tenantId, status: 'ACTIVE' },
           orderBy: { endDate: 'desc' },
           include: { plan: true }
         });
@@ -153,9 +161,12 @@ const getProfile = async (req, res) => {
       }
     }
 
+    // Omit sensitive fields
+    const { password, ...safeUser } = dbUser;
+
     res.json({ 
       success: true, 
-      data: { ...user, subscriptionStatus, expiryDate, planName } 
+      data: { ...safeUser, subscriptionStatus, expiryDate, planName } 
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

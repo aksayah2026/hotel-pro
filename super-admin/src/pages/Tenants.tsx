@@ -451,6 +451,7 @@ export default function Tenants() {
 
 
       {/* VIEW DRAWER */}
+      {viewVisible && (
       <Drawer
         title={<Title level={4} style={{ margin: 0 }}>{selectedTenant?.businessName} - Detailed View</Title>}
         width={800}
@@ -550,8 +551,10 @@ export default function Tenants() {
           </Tabs>
         )}
       </Drawer>
+      )}
 
       {/* EDIT MODAL */}
+      {editVisible && (
       <Modal
         title="Edit Tenant Details"
         open={editVisible}
@@ -612,8 +615,10 @@ export default function Tenants() {
 
         </Form>
       </Modal>
+      )}
 
       {/* DELETE MODAL */}
+      {deleteVisible && (
       <Modal
         title={<span><ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: '8px' }} /> Delete Tenant</span>}
         open={deleteVisible}
@@ -653,6 +658,7 @@ export default function Tenants() {
           </Space>
         )}
       </Modal>
+      )}
     </div>
   );
 }
