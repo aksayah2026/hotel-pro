@@ -7,6 +7,7 @@ export interface Tenant {
   address: string;
   phoneNumber: string;
   mobile: string;
+  isActive?: boolean;
 }
 
 export interface User {
