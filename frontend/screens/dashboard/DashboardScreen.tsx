@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  TrendingUp, BedDouble, LogOut, Settings,
+  TrendingUp, BedDouble, LogOut, Settings, Bell,
   AlertTriangle, ArrowUpRight, ArrowDownRight,
   Banknote, Smartphone, CreditCard, ChevronRight
 } from 'lucide-react-native';
@@ -14,6 +14,7 @@ import { useTheme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardService } from '../../services/dashboardService';
 import { bookingService, Booking } from '../../services/bookingService';
+import { notificationService } from '../../services/notificationService';
 import { Card } from '../../components/Card';
 import { Badge, statusVariant } from '../../components/Badge';
 import { Loading } from '../../components/LoadingState';
@@ -34,6 +35,7 @@ interface RevenueAnalytics {
 
 import { AdminDashboard } from './components/AdminDashboard';
 import { StaffDashboard } from './components/StaffDashboard';
+import { registerForPushNotificationsAsync } from '../../utils/notification';
 
 export default function DashboardScreen() {
   const { theme } = useTheme();
@@ -50,11 +52,17 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Live Clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Register push notifications on mount
+  useEffect(() => {
+    registerForPushNotificationsAsync();
   }, []);
 
   const fetchRevenue = async (type: string) => {
@@ -71,7 +79,8 @@ export default function DashboardScreen() {
     try {
       const promises: any[] = [
         dashboardService.getStats(),
-        bookingService.getAll({ status: 'COMPLETED', limit: 5, sort: 'updatedAt' })
+        bookingService.getAll({ status: 'COMPLETED', limit: 5, sort: 'updatedAt' }),
+        notificationService.getAll(1, 1),
       ];
       
       if (isAdmin) {
@@ -81,8 +90,9 @@ export default function DashboardScreen() {
       const results = await Promise.all(promises);
       setData(results[0].data.data);
       setHistory(results[1].data.data);
-      if (isAdmin && results[2]) {
-        setRevenue(results[2].data.data);
+      setUnreadNotifications(results[2]?.data?.unreadCount || 0);
+      if (isAdmin && results[3]) {
+        setRevenue(results[3].data.data);
       }
     } catch (err) {
       console.error('Dashboard Fetch Error:', err);
@@ -180,6 +190,23 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Notification')}
+            style={{ width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.divider, position: 'relative' }}>
+            <Bell size={18} color={colors.textSecondary} />
+            {unreadNotifications > 0 && (
+              <View style={{
+                position: 'absolute', top: -4, right: -4,
+                backgroundColor: colors.error, borderRadius: 8,
+                minWidth: 16, height: 16, paddingHorizontal: 4,
+                justifyContent: 'center', alignItems: 'center'
+              }}>
+                <Text style={{ fontSize: 9, color: colors.textOnPrimary, fontWeight: 'bold' }}>
+                  {unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           {isAdmin && (
             <TouchableOpacity
               onPress={() => navigation.navigate('Settings')}

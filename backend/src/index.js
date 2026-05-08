@@ -18,6 +18,7 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const tenantRoutes = require('./routes/tenant.routes');
 const auditLogRoutes = require('./routes/auditLog.routes');
 const saasPaymentRoutes = require('./routes/saasPayment.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 require('./utils/cron'); // Initialize cron jobs
 
@@ -99,6 +100,7 @@ app.use('/api/amenities', authenticate, checkSubscription, checkReadOnly, amenit
 app.use('/api/bookings', authenticate, checkSubscription, checkReadOnly, bookingRoutes);
 app.use('/api/payments', authenticate, checkSubscription, checkReadOnly, paymentRoutes);
 app.use('/api/dashboard', authenticate, checkSubscription, dashboardRoutes);
+app.use('/api/notifications', authenticate, notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -88,6 +88,8 @@ model Tenant {
   subscriptions  Subscription[]
   saasPayments   SaaSPayment[]
   saasInvoices   SaaSInvoice[]
+  pushTokens     PushToken[]
+  notifications  Notification[]
 
   @@index([isDeleted])
   @@index([isActive])
@@ -162,6 +164,8 @@ model User {
 
   bookings  Booking[]
   auditLogs AuditLog[]
+  pushTokens    PushToken[]
+  notifications Notification[]
 
   @@index([tenantId])
   @@index([isDeleted])
@@ -371,4 +375,39 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tenantId  String
+  token     String   @unique
+  platform  String   // ios / android
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("push_tokens")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  tenantId  String
+  title     String
+  message   String
+  type      String   // NEW_BOOKING, GUEST_CHECK_IN, GUEST_CHECK_OUT, etc.
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User?  @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("notifications")
 }

@@ -32,6 +32,7 @@ import SettingsScreen             from '../screens/admin/SettingsScreen';
 import ConfigScreen               from '../screens/admin/ConfigScreen';
 import StaffScreen                from '../screens/admin/StaffScreen';
 import PastEventsScreen           from '../screens/booking/PastEventsScreen';
+import NotificationScreen         from '../screens/notifications/NotificationScreen';
 import { Loading }                from '../components/LoadingState';
 
 const Stack = createNativeStackNavigator();
@@ -111,6 +112,7 @@ const AuthenticatedNavigator = () => (
     <Stack.Screen name="Config"          component={ConfigScreen} />
     <Stack.Screen name="Staff"           component={StaffScreen} />
     <Stack.Screen name="PastEvents"      component={PastEventsScreen} />
+    <Stack.Screen name="Notification"    component={NotificationScreen} />
   </Stack.Navigator>
 );
 

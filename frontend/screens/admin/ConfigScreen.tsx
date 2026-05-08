@@ -62,17 +62,19 @@ export default function ConfigScreen() {
   const handleDeleteType = (id: string, name: string) => {
     Alert.alert('Delete', `Delete "${name}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await roomService.deleteType(id); fetchData(); }
-        catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete'); }
-      }}
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await roomService.deleteType(id); fetchData(); }
+          catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete'); }
+        }
+      }
     ]);
   };
 
   const handleAddAmenity = async () => {
     const trimmed = newAmenity.trim();
     if (!trimmed) return;
-    
+
     // Duplicate check
     const exists = amenities.some(a => a.name.toLowerCase() === trimmed.toLowerCase());
     if (exists) {
@@ -95,10 +97,12 @@ export default function ConfigScreen() {
   const handleDeleteAmenity = (id: string, name: string) => {
     Alert.alert('Delete', `Delete "${name}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await roomService.deleteAmenity(id); fetchData(); }
-        catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete'); }
-      }}
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await roomService.deleteAmenity(id); fetchData(); }
+          catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete'); }
+        }
+      }
     ]);
   };
 
@@ -124,130 +128,130 @@ export default function ConfigScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header 
-        title="Hotel Config" 
-        subtitle={`Welcome, ${user?.name || 'Admin'}`} 
-        showBack 
+      <Header
+        title="Hotel Config"
+        subtitle={`Welcome, ${user?.name || 'Admin'}`}
+        showBack
       />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView 
-            contentContainerStyle={{ 
-              paddingHorizontal: spacing.base, 
-              paddingBottom: insets.bottom + 120 
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: spacing.base,
+              paddingBottom: insets.bottom + 120,
             }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
           >
-        <SectionTitle title="Room Types" />
-        <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.divider }}>
-          {roomTypes.map((t, idx) => (
-            <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomWidth: idx === roomTypes.length - 1 ? 0 : 1, borderBottomColor: colors.divider }}>
-              <Text style={{ fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.medium as any }}>{t.name}</Text>
-              <TouchableOpacity onPress={() => handleDeleteType(t.id, t.name)} style={{ padding: 4 }}>
-                <Trash2 size={16} color={colors.error} opacity={0.6} />
-              </TouchableOpacity>
+            <SectionTitle title="Room Types" />
+            <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.divider }}>
+              {roomTypes.map((t, idx) => (
+                <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomWidth: idx === roomTypes.length - 1 ? 0 : 1, borderBottomColor: colors.divider }}>
+                  <Text style={{ fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.medium as any }}>{t.name}</Text>
+                  <TouchableOpacity onPress={() => handleDeleteType(t.id, t.name)} style={{ padding: 4 }}>
+                    <Trash2 size={16} color={colors.error} opacity={0.6} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.backgroundSecondary + '40' }}>
+                <Plus size={18} color={colors.primary} />
+                <TextInput
+                  style={{ flex: 1, height: 40, color: colors.textPrimary, fontSize: fontSize.md }}
+                  placeholder="Add new type..." placeholderTextColor={colors.textMuted}
+                  value={newType} onChangeText={setNewType} onSubmitEditing={handleAddType}
+                />
+                {actionLoading === 'addType' ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  newType.length > 0 && (
+                    <TouchableOpacity onPress={handleAddType}>
+                      <Send size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
             </View>
-          ))}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.backgroundSecondary + '40' }}>
-            <Plus size={18} color={colors.primary} />
-            <TextInput
-              style={{ flex: 1, height: 40, color: colors.textPrimary, fontSize: fontSize.md }}
-              placeholder="Add new type..." placeholderTextColor={colors.textMuted}
-              value={newType} onChangeText={setNewType} onSubmitEditing={handleAddType}
-            />
-            {actionLoading === 'addType' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              newType.length > 0 && (
-                <TouchableOpacity onPress={handleAddType}>
-                  <Send size={18} color={colors.primary} />
-                </TouchableOpacity>
-              )
-            )}
-          </View>
-        </View>
 
-        <SectionTitle title="Amenities" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-          {amenities.map(a => (
-            <View key={a.id} style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              backgroundColor: colors.backgroundSecondary,
-              paddingHorizontal: spacing.md, 
-              paddingVertical: spacing.sm, 
-              borderRadius: radius.full, 
-              margin: 2,
-              maxWidth: '90%',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}>
-              <Text 
-                numberOfLines={1} 
-                ellipsizeMode="tail"
-                style={{ 
-                  fontSize: fontSize.sm, 
-                  color: colors.textPrimary, 
-                  flexShrink: 1,
-                  marginRight: spacing.xs,
-                  fontWeight: fontWeight.medium as any
-                }}
-              >
-                {a.name}
-              </Text>
-              <TouchableOpacity 
-                onPress={() => handleDeleteAmenity(a.id, a.name)}
-                style={{ padding: 2 }}
-              >
-                <X size={16} color={colors.error} opacity={0.8} />
-              </TouchableOpacity>
+            <SectionTitle title="Amenities" />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+              {amenities.map(a => (
+                <View key={a.id} style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colors.backgroundSecondary,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.full,
+                  margin: 2,
+                  maxWidth: '90%',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}>
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{
+                      fontSize: fontSize.sm,
+                      color: colors.textPrimary,
+                      flexShrink: 1,
+                      marginRight: spacing.xs,
+                      fontWeight: fontWeight.medium as any
+                    }}
+                  >
+                    {a.name}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteAmenity(a.id, a.name)}
+                    style={{ padding: 2 }}
+                  >
+                    <X size={16} color={colors.error} opacity={0.8} />
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
 
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          gap: spacing.sm, 
-          paddingHorizontal: spacing.md, 
-          paddingVertical: 6, 
-          backgroundColor: colors.backgroundSecondary, 
-          borderRadius: radius.md, 
-          borderWidth: 1, 
-          borderStyle: 'dashed', 
-          borderColor: colors.primary + '60' 
-        }}>
-          <TextInput
-            style={{ flex: 1, height: 40, fontSize: fontSize.sm, color: colors.textPrimary }}
-            placeholder="e.g. Free WiFi, Pool..." placeholderTextColor={colors.textMuted}
-            value={newAmenity} onChangeText={setNewAmenity} onSubmitEditing={handleAddAmenity}
-          />
-          <TouchableOpacity 
-            onPress={handleAddAmenity}
-            disabled={!newAmenity.trim() || actionLoading === 'addAmenity'}
-            style={{ 
-              backgroundColor: newAmenity.trim() ? colors.primary : colors.border,
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
               paddingHorizontal: spacing.md,
               paddingVertical: 6,
-              borderRadius: radius.sm,
-              opacity: actionLoading === 'addAmenity' ? 0.6 : 1,
-            }}
-          >
-            {actionLoading === 'addAmenity' ? (
-              <ActivityIndicator size="small" color={colors.textOnPrimary} />
-            ) : (
-              <Text style={{ color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold as any }}>ADD</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+              backgroundColor: colors.backgroundSecondary,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: colors.primary + '60'
+            }}>
+              <TextInput
+                style={{ flex: 1, height: 40, fontSize: fontSize.sm, color: colors.textPrimary }}
+                placeholder="e.g. Free WiFi, Pool..." placeholderTextColor={colors.textMuted}
+                value={newAmenity} onChangeText={setNewAmenity} onSubmitEditing={handleAddAmenity}
+              />
+              <TouchableOpacity
+                onPress={handleAddAmenity}
+                disabled={!newAmenity.trim() || actionLoading === 'addAmenity'}
+                style={{
+                  backgroundColor: newAmenity.trim() ? colors.primary : colors.border,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 6,
+                  borderRadius: radius.sm,
+                  opacity: actionLoading === 'addAmenity' ? 0.6 : 1,
+                }}
+              >
+                {actionLoading === 'addAmenity' ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Text style={{ color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold as any }}>ADD</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </View>

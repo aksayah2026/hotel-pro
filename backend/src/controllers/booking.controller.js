@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const { sendTenantBulkNotification, sendTenantAdminNotification } = require('../utils/push');
 
 // Generate booking number
 const generateBookingNumber = () => {
@@ -287,6 +288,16 @@ const createBooking = async (req, res) => {
       },
     });
 
+    // Send push notification for new booking to Tenant Admin
+    sendTenantAdminNotification(
+      req.user.tenantId,
+      req.user.id,
+      '🆕 Booking Created',
+      `New booking created by ${req.user.name} for Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      'NEW_BOOKING',
+      { bookingId: fullBooking.id }
+    );
+
     res.status(201).json({ success: true, data: fullBooking });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -331,6 +342,16 @@ const checkIn = async (req, res) => {
       });
       return updated;
     });
+
+    // Send push notification for guest check-in to Tenant Admin
+    sendTenantAdminNotification(
+      req.user.tenantId,
+      req.user.id,
+      '🔑 Guest Checked In',
+      `Guest ${result.customer?.name || 'Guest'} checked in by ${req.user.name} - Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      'GUEST_CHECK_IN',
+      { bookingId: result.id }
+    );
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -431,6 +452,16 @@ const checkOut = async (req, res) => {
       return updated;
     });
 
+    // Send push notification for guest check-out to Tenant Admin
+    sendTenantAdminNotification(
+      req.user.tenantId,
+      req.user.id,
+      '🚪 Guest Checked Out',
+      `Guest ${result.customer?.name || 'Guest'} checked out by ${req.user.name} - Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      'GUEST_CHECK_OUT',
+      { bookingId: result.id }
+    );
+
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -482,6 +513,16 @@ const cancelBooking = async (req, res) => {
 
       return b;
     });
+
+    // Send push notification for booking cancellation to Tenant Admin
+    sendTenantAdminNotification(
+      req.user.tenantId,
+      req.user.id,
+      '❌ Booking Cancelled',
+      `Booking ${updated.bookingNumber} cancelled by ${req.user.name} for Room ${updated.bookingRooms?.map(br => br.room?.roomNumber).join(', ') || 'N/A'}.`,
+      'BOOKING_CANCELLATION',
+      { bookingId: updated.id }
+    );
 
     res.json({ success: true, data: updated });
   } catch (error) {

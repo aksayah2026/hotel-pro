@@ -100,6 +100,18 @@ const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
+    // Trigger login push notification if the user is staff and belongs to a tenant
+    if (user.tenantId && user.role !== 'TENANT_ADMIN') {
+      const { sendTenantAdminNotification } = require('../utils/push');
+      sendTenantAdminNotification(
+        user.tenantId,
+        user.id,
+        '🚪 Staff Logged In',
+        `Staff ${user.name} logged into HotelPro.`,
+        'STAFF_LOGIN'
+      ).catch(err => console.error('Error sending login push:', err.message));
+    }
+
     res.json({
       success: true,
       data: {
