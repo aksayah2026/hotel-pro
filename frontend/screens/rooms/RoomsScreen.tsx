@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  RefreshControl, StatusBar, Alert,
+  RefreshControl, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -171,26 +171,31 @@ export default function RoomsScreen() {
         />
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(i) => i.id}
-        renderItem={renderRoom}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRooms(); }} colors={[colors.primary]} />}
-        contentContainerStyle={{ 
-          padding: spacing.base, 
-          flexGrow: 1,
-          paddingBottom: 40 // Extra space for scroll comfort
-        }}
-        ListEmptyComponent={
-          !loading ? (
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Loading rooms...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(i) => i.id}
+          renderItem={renderRoom}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRooms(); }} colors={[colors.primary]} />}
+          contentContainerStyle={{ 
+            padding: spacing.base, 
+            flexGrow: 1,
+            paddingBottom: 40
+          }}
+          ListEmptyComponent={
             <EmptyState
               icon={<BedDouble size={56} color={colors.textMuted} />}
               title="No rooms found"
               message={activeFilter !== 'ALL' ? `No ${activeFilter.toLowerCase()} rooms` : 'Add your first room to get started'}
             />
-          ) : null
-        }
-      />
+          }
+        />
+      )}
     </View>
   );
 }

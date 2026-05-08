@@ -109,13 +109,18 @@ export default function CustomerDetailsScreen() {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Customer name is required';
     if (!form.mobile || form.mobile.length < 10) e.mobile = 'Enter a valid 10-digit mobile number';
-    // if (!aadhaarUrl) e.aadhaar = 'Aadhaar image is mandatory'; // Made optional for testing
+    if (!aadhaarUrl) e.aadhaar = 'Please upload Aadhaar card to continue';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleNext = () => {
-    if (!validate()) return;
+    if (!validate()) {
+      if (!aadhaarUrl) {
+        Alert.alert('Validation Error', 'Please upload Aadhaar card to continue');
+      }
+      return;
+    }
     navigation.navigate('EnterAmount', {
       rooms, checkIn, checkOut, nights,
       customer: { 
@@ -123,7 +128,7 @@ export default function CustomerDetailsScreen() {
         mobile: form.mobile, 
         email: form.email, 
         address: form.address, 
-        aadhaarImage: aadhaarUrl || 'https://via.placeholder.com/150' 
+        aadhaarImage: aadhaarUrl
       },
     });
   };
@@ -206,7 +211,7 @@ export default function CustomerDetailsScreen() {
         </Card>
 
         {/* Aadhaar Upload */}
-        <Card>
+        <Card style={errors.aadhaar ? { borderColor: colors.error, borderWidth: 1.5 } : undefined}>
           <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, marginBottom: spacing.xs }}>
             Aadhaar Card *
           </Text>

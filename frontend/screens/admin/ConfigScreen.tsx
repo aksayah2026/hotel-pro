@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, Alert, StatusBar, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator, RefreshControl, TextInput, KeyboardAvoidingView,
+  Platform, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Send, Trash2, X } from 'lucide-react-native';
@@ -129,14 +130,21 @@ export default function ConfigScreen() {
         showBack 
       />
 
-      <ScrollView 
-        contentContainerStyle={{ 
-          paddingHorizontal: spacing.base, 
-          paddingBottom: insets.bottom + 60 
-        }}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
       >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView 
+            contentContainerStyle={{ 
+              paddingHorizontal: spacing.base, 
+              paddingBottom: insets.bottom + 120 
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} colors={[colors.primary]} />}
+          >
         <SectionTitle title="Room Types" />
         <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.divider }}>
           {roomTypes.map((t, idx) => (
@@ -154,7 +162,15 @@ export default function ConfigScreen() {
               placeholder="Add new type..." placeholderTextColor={colors.textMuted}
               value={newType} onChangeText={setNewType} onSubmitEditing={handleAddType}
             />
-            {newType.length > 0 && <TouchableOpacity onPress={handleAddType}><Send size={18} color={colors.primary} /></TouchableOpacity>}
+            {actionLoading === 'addType' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              newType.length > 0 && (
+                <TouchableOpacity onPress={handleAddType}>
+                  <Send size={18} color={colors.primary} />
+                </TouchableOpacity>
+              )
+            )}
           </View>
         </View>
 
@@ -215,18 +231,25 @@ export default function ConfigScreen() {
           />
           <TouchableOpacity 
             onPress={handleAddAmenity}
-            disabled={!newAmenity.trim()}
+            disabled={!newAmenity.trim() || actionLoading === 'addAmenity'}
             style={{ 
               backgroundColor: newAmenity.trim() ? colors.primary : colors.border,
               paddingHorizontal: spacing.md,
               paddingVertical: 6,
-              borderRadius: radius.sm
+              borderRadius: radius.sm,
+              opacity: actionLoading === 'addAmenity' ? 0.6 : 1,
             }}
           >
-            <Text style={{ color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold as any }}>ADD</Text>
+            {actionLoading === 'addAmenity' ? (
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
+            ) : (
+              <Text style={{ color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold as any }}>ADD</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -167,10 +167,12 @@ export default function Tenants() {
     setViewVisible(true);
     setHistoryLoading(true);
     try {
-      const [payRes, logRes] = await Promise.all([
+      const [tenantRes, payRes, logRes] = await Promise.all([
+        api.get(`/tenants/${record.id}`),
         api.get(`/saas-payments/tenant/${record.id}`),
         api.get(`/audit-logs?tenantId=${record.id}`)
       ]);
+      setSelectedTenant(tenantRes.data.data);
       setPayments(payRes.data.data);
       setLogs(logRes.data.data);
     } catch (err) {
@@ -465,8 +467,8 @@ export default function Tenants() {
                 <Descriptions title="Business Information" bordered column={1}>
                   <Descriptions.Item label="Business Name">{selectedTenant.businessName}</Descriptions.Item>
                   <Descriptions.Item label="Owner Name">{selectedTenant.ownerName}</Descriptions.Item>
-                  <Descriptions.Item label="Address">{selectedTenant.address}</Descriptions.Item>
-                  <Descriptions.Item label="Phone Number">{selectedTenant.phoneNumber}</Descriptions.Item>
+                  <Descriptions.Item label="Address">{selectedTenant.address || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="Phone Number">{selectedTenant.phoneNumber || '-'}</Descriptions.Item>
                   <Descriptions.Item label="Access Level">
                     <Tag color={selectedTenant.accessLevel === 'FULL' ? 'green' : selectedTenant.accessLevel === 'READ_ONLY' ? 'orange' : 'red'}>
                       {selectedTenant.accessLevel}

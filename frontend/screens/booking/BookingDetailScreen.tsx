@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StatusBar, Alert, TouchableOpacity, Modal,
+  View, Text, ScrollView, StatusBar, Alert, TouchableOpacity, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { LogIn, LogOut, XCircle, CreditCard, Phone, User, BedDouble, Download, Plus, X, Banknote } from 'lucide-react-native';
+import { LogIn, LogOut, XCircle, CreditCard, Phone, User, BedDouble, Download, Plus, X, Banknote, ChevronLeft } from 'lucide-react-native';
 import { Linking } from 'react-native';
 import { useTheme } from '../../theme';
 import { bookingService, Booking } from '../../services/bookingService';
@@ -61,8 +61,39 @@ export default function BookingDetailScreen() {
 
   if (!bookingId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <Header title="Booking Details" showBack />
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Custom Compact Header */}
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 20,
+          paddingTop: Platform.OS === "ios" ? 2 : 8,
+          paddingBottom: 10,
+          backgroundColor: colors.background,
+        }}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: colors.surface,
+              ...theme.shadow.sm,
+            }}>
+            <ChevronLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={{
+            fontSize: 22,
+            fontWeight: "700",
+            color: colors.textPrimary,
+            marginLeft: 14,
+          }}>
+            Booking Details
+          </Text>
+        </View>
+
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
            <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Invalid Navigation</Text>
            <Text style={{ fontSize: fontSize.sm, color: colors.error, textAlign: 'center', marginTop: spacing.sm }}>
@@ -176,11 +207,42 @@ export default function BookingDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header title="Booking Detail" showBack />
+      
+      {/* Custom Compact Header */}
+      <View style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === "ios" ? 2 : 8,
+        paddingBottom: 10,
+        backgroundColor: colors.background,
+      }}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.surface,
+            ...theme.shadow.sm,
+          }}>
+          <ChevronLeft size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={{
+          fontSize: 22,
+          fontWeight: "700",
+          color: colors.textPrimary,
+          marginLeft: 14,
+        }}>
+          Booking Detail
+        </Text>
+      </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.base, paddingTop: 6, paddingBottom: 140, gap: spacing.base }}>
         {/* Status Hero */}
         <Card style={{ borderColor: colors.border }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>

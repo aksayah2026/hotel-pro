@@ -45,9 +45,9 @@ const getDashboardStats = async (req, res) => {
         where: { ...tenantFilter, checkInDate: { gte: today, lt: tomorrow }, status: 'BOOKED' },
       }),
       
-      // Outgoing: Scheduled to checkout today (whether already left or still here)
+      // Outgoing: Scheduled to checkout today (only active checked-in guests)
       prisma.booking.count({
-        where: { ...tenantFilter, checkOutDate: { gte: today, lt: tomorrow }, status: { in: ['CHECKED_IN', 'COMPLETED'] } },
+        where: { ...tenantFilter, checkOutDate: { gte: today, lt: tomorrow }, status: 'CHECKED_IN' },
       }),
 
       // Transactions: Count of payments today

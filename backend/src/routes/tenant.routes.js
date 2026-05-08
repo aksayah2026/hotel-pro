@@ -11,6 +11,7 @@ router.get('/plans', authenticate, tenantController.getPlans);
 router.get('/', authenticate, requireSuperAdmin, tenantController.getAllTenants);
 router.post('/', authenticate, requireSuperAdmin, tenantController.createTenant);
 router.get('/activity', authenticate, requireSuperAdmin, tenantController.getTenantActivity);
+router.get('/:id', authenticate, requireSuperAdmin, tenantController.getTenantById);
 router.post('/plans', authenticate, requireSuperAdmin, tenantController.createPlan);
 router.put('/:id', authenticate, requireSuperAdmin, tenantController.updateTenant);
 router.patch('/:id/status', authenticate, requireSuperAdmin, tenantController.updateTenantStatus);

@@ -215,6 +215,8 @@ const getAllTenants = async (req, res) => {
           id: true,
           businessName: true,
           ownerName: true,
+          address: true,
+          phoneNumber: true,
           mobile: true,
           isActive: true,
           isBlocked: true,
@@ -249,6 +251,47 @@ const getAllTenants = async (req, res) => {
         totalPages: Math.ceil(total / limit)
       }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/tenants/:id
+const getTenantById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenant = await prisma.tenant.findUnique({
+      where: { id, isDeleted: false },
+      select: {
+        id: true,
+        businessName: true,
+        ownerName: true,
+        address: true,
+        phoneNumber: true,
+        mobile: true,
+        isActive: true,
+        isBlocked: true,
+        accessLevel: true,
+        isSystem: true,
+        totalBookings: true,
+        createdAt: true,
+        subscriptions: { 
+          orderBy: { endDate: 'desc' }, 
+          take: 1, 
+          select: { 
+            status: true, 
+            endDate: true, 
+            plan: { select: { name: true } } 
+          } 
+        }
+      }
+    });
+
+    if (!tenant) {
+      return res.status(404).json({ success: false, message: 'Tenant not found' });
+    }
+
+    res.json({ success: true, data: tenant });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -476,7 +519,7 @@ const updateTenantStatus = async (req, res) => {
 
 module.exports = { 
   getPlans, createPlan, createTenant, 
-  getAllTenants, getTenantActivity, 
+  getAllTenants, getTenantById, getTenantActivity, 
   renewSubscription,
   updateTenant, updateTenantStatus, deleteTenant 
 };

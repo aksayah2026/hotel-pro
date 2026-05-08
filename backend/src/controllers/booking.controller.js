@@ -426,7 +426,7 @@ const checkOut = async (req, res) => {
 
       await tx.room.updateMany({
         where: { id: { in: roomIds }, tenantId: req.user.tenantId },
-        data: { status: 'CLEANING' },
+        data: { status: 'AVAILABLE' },
       });
       return updated;
     });

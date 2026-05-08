@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../theme';
 
@@ -54,11 +55,14 @@ export const Button: React.FC<ButtonProps> = ({
 
   const isDisabled = disabled || loading;
 
+  const hasShadow = variant === 'primary' || variant === 'danger';
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       disabled={isDisabled}
+      renderToHardwareTextureAndroid={true}
       style={[
         {
           height: heights[size],
@@ -72,8 +76,10 @@ export const Button: React.FC<ButtonProps> = ({
           justifyContent: 'center',
           gap: spacing.sm,
           opacity: isDisabled ? 0.5 : 1,
+          overflow: 'hidden',
           ...(fullWidth && { width: '100%' }),
-          ...theme.shadow.sm,
+          ...(hasShadow ? theme.shadow.sm : {}),
+          ...(Platform.OS === 'android' && !hasShadow && { elevation: 0 }),
         },
         style,
       ]}>
