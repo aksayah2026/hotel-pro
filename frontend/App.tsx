@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from './theme/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
 import { RootNavigator } from './navigation/RootNavigator';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 // Configure global foreground notification behavior
 Notifications.setNotificationHandler({
@@ -25,6 +26,19 @@ const AppInner = () => {
   const responseListener = useRef<any>(null);
 
   useEffect(() => {
+    // 0. Establish default high-importance Android channel immediately on boot
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#5B3FFF',
+        sound: 'default',
+        enableLights: true,
+        enableVibrate: true,
+      });
+    }
+
     // 1. Foreground notification received listener
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       console.log('🔔 Notification Received in Foreground:', notification);

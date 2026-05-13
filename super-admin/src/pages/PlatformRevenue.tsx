@@ -1,11 +1,11 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import api from '../api';
-import { 
-  Card, Row, Col, Statistic, Typography, Table, Tag, 
-  Space, Select, DatePicker, Button, Tooltip, Empty
+import {
+  Card, Row, Col, Statistic, Typography, Table, Tag,
+  Space, Select, DatePicker, Button, Tooltip, Empty, message
 } from 'antd';
-import { 
-  DollarCircleOutlined, 
+import {
+  DollarCircleOutlined,
   LineChartOutlined,
   HistoryOutlined,
   DownloadOutlined,
@@ -24,8 +24,39 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 export default function PlatformRevenue() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [loadCharts, setLoadCharts] = useState(false);
   const [year, setYear] = useState(dayjs().year());
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    message.loading({ content: 'Preparing revenue report...', key: 'revExport' });
+    try {
+      const res = await api.get('/dashboard/super-admin/export', {
+        params: { type: 'yearly', year },
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Executive_Revenue_Report_${year}.csv`);
+      document.body.appendChild(link);
+      
+      link.click();
+      
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      message.success({ content: 'Revenue report downloaded successfully!', key: 'revExport', duration: 3 });
+    } catch (err) {
+      console.error('Export error:', err);
+      message.error({ content: 'Failed to generate report. Please try again.', key: 'revExport', duration: 3 });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const fetchRevenue = async () => {
     setLoading(true);
@@ -62,13 +93,19 @@ export default function PlatformRevenue() {
           <Text type="secondary">Monitor SaaS subscription earnings and billing performance.</Text>
         </div>
         <Space>
-          <DatePicker 
-            picker="year" 
-            value={dayjs(`${year}-01-01`)} 
+          <DatePicker
+            picker="year"
+            value={dayjs(`${year}-01-01`)}
             onChange={(date) => setYear(date?.year() || dayjs().year())}
             allowClear={false}
           />
-          <Button icon={<DownloadOutlined />}>Export Report</Button>
+          <Button 
+            icon={<DownloadOutlined />} 
+            loading={exportLoading}
+            onClick={handleExport}
+          >
+            Export Report
+          </Button>
         </Space>
       </div>
 
@@ -130,21 +167,21 @@ export default function PlatformRevenue() {
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={24}>
           <Card title={<span><HistoryOutlined /> Top Contributing Businesses</span>} bordered={false}>
-            <Table 
-              dataSource={data?.tenantWise} 
+            <Table
+              dataSource={data?.tenantWise}
               loading={loading}
               columns={[
                 { title: 'Business Name', dataIndex: 'name', key: 'name' },
-                { 
-                  title: 'Platform Contribution', 
-                  dataIndex: 'saasRevenue', 
-                  key: 'saasRevenue',
+                {
+                  title: 'Platform Contribution',
+                  dataIndex: 'revenue',
+                  key: 'revenue',
                   render: (val) => <Text strong>₹{val.toLocaleString()}</Text>
                 },
                 {
-                   title: 'Status',
-                   key: 'status',
-                   render: () => <Tag color="success">Paid</Tag>
+                  title: 'Status',
+                  key: 'status',
+                  render: () => <Tag color="success">Paid</Tag>
                 }
               ]}
               pagination={false}

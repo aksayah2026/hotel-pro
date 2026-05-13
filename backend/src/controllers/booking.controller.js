@@ -165,6 +165,17 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'One or more rooms not found or unauthorized' });
     }
 
+    // Prevent Check-In to Cleaning rooms
+    if (doCheckIn) {
+      const cleaningRooms = rooms.filter(r => r.status === 'CLEANING');
+      if (cleaningRooms.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot check in. Room ${cleaningRooms.map(r => r.roomNumber).join(', ')} is currently undergoing cleaning.`
+        });
+      }
+    }
+
     // Check double-booking
     const conflictChecks = await Promise.all(
       uniqueRoomIds.map((roomId) => hasConflict(roomId, checkIn, checkOut, req.user.tenantId))
@@ -292,8 +303,8 @@ const createBooking = async (req, res) => {
     sendTenantAdminNotification(
       req.user.tenantId,
       req.user.id,
-      '🆕 Booking Created',
-      `New booking created by ${req.user.name} for Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      '🆕 Booking Confirmed',
+      `Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: A new booking has been successfully created by ${req.user.name}.`,
       'NEW_BOOKING',
       { bookingId: fullBooking.id }
     );
@@ -309,7 +320,7 @@ const checkIn = async (req, res) => {
   try {
     const booking = await prisma.booking.findFirst({
       where: { id: req.params.id, tenantId: req.user.tenantId },
-      include: { customer: true, bookingRooms: true },
+      include: { customer: true, bookingRooms: { include: { room: true } } },
     });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     if (booking.status !== 'BOOKED') {
@@ -322,6 +333,15 @@ const checkIn = async (req, res) => {
     checkInDay.setHours(0, 0, 0, 0);
     if (checkInDay.getTime() !== today.getTime()) {
       return res.status(400).json({ success: false, message: 'Check-In is only allowed on the check-in date' });
+    }
+
+    // Prevent Check-In to Cleaning rooms
+    const cleaningRooms = booking.bookingRooms.filter(br => br.room?.status === 'CLEANING');
+    if (cleaningRooms.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete check-in. Room ${cleaningRooms.map(br => br.room?.roomNumber).join(', ')} is currently undergoing cleaning.`
+      });
     }
 
     const roomIds = booking.bookingRooms.map((br) => br.roomId);
@@ -347,8 +367,8 @@ const checkIn = async (req, res) => {
     sendTenantAdminNotification(
       req.user.tenantId,
       req.user.id,
-      '🔑 Guest Checked In',
-      `Guest ${result.customer?.name || 'Guest'} checked in by ${req.user.name} - Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      '🔑 Guest Check-In Completed',
+      `Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: Check-in processed for ${result.customer?.name || 'Guest'} by ${req.user.name}.`,
       'GUEST_CHECK_IN',
       { bookingId: result.id }
     );
@@ -447,7 +467,7 @@ const checkOut = async (req, res) => {
 
       await tx.room.updateMany({
         where: { id: { in: roomIds }, tenantId: req.user.tenantId },
-        data: { status: 'AVAILABLE' },
+        data: { status: 'CLEANING' },
       });
       return updated;
     });
@@ -456,8 +476,8 @@ const checkOut = async (req, res) => {
     sendTenantAdminNotification(
       req.user.tenantId,
       req.user.id,
-      '🚪 Guest Checked Out',
-      `Guest ${result.customer?.name || 'Guest'} checked out by ${req.user.name} - Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}.`,
+      '🚪 Guest Check-Out Completed',
+      `Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: Check-out completed for ${result.customer?.name || 'Guest'} by ${req.user.name}.`,
       'GUEST_CHECK_OUT',
       { bookingId: result.id }
     );
@@ -519,7 +539,7 @@ const cancelBooking = async (req, res) => {
       req.user.tenantId,
       req.user.id,
       '❌ Booking Cancelled',
-      `Booking ${updated.bookingNumber} cancelled by ${req.user.name} for Room ${updated.bookingRooms?.map(br => br.room?.roomNumber).join(', ') || 'N/A'}.`,
+      `Booking #${updated.bookingNumber} (Room ${updated.bookingRooms?.map(br => br.room?.roomNumber).join(', ') || 'N/A'}) has been cancelled by ${req.user.name}.`,
       'BOOKING_CANCELLATION',
       { bookingId: updated.id }
     );

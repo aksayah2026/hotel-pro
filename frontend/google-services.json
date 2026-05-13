@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "724306388253",
+    "project_id": "hotelpro-android",
+    "storage_bucket": "hotelpro-android.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:724306388253:android:352e98a9976e4c54b1edf4",
+        "android_client_info": {
+          "package_name": "com.hotelpro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvuG4uG9edHvKx7B-NYkHAPziX4BUay08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

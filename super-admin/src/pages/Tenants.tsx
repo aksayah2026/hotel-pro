@@ -509,41 +509,79 @@ export default function Tenants() {
                 loading={historyLoading}
                 dataSource={logs}
                 renderItem={item => {
-                  const details = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
-                  const labelMap = {
-                    businessName: 'Business Name',
-                    ownerName: 'Owner',
-                    planId: 'Plan ID',
-                    address: 'Address',
-                    phoneNumber: 'Phone',
-                    status: 'Status',
-                    isActive: 'Active Status'
+                  let details = {};
+                  try {
+                    details = typeof item.details === 'string' ? JSON.parse(item.details) : (item.details || {});
+                  } catch (e) {
+                    console.error("Error parsing details", e);
+                  }
+
+                  const formatTitle = (str: string) => {
+                    if (!str) return '';
+                    return str
+                      .toLowerCase()
+                      .split(/[_\s]+/)
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ');
+                  };
+
+                  const formatLabel = (key: string) => {
+                    const labelMap: { [key: string]: string } = {
+                      businessName: 'Business Name',
+                      ownerName: 'Owner',
+                      planId: 'Plan ID',
+                      address: 'Address',
+                      phoneNumber: 'Phone',
+                      status: 'Status',
+                      isActive: 'Active Status',
+                      plan: 'Plan',
+                      amount: 'Amount',
+                      paymentMethod: 'Payment Method',
+                      reason: 'Reason'
+                    };
+                    if (labelMap[key]) return labelMap[key];
+                    const spaced = key
+                      .replace(/([A-Z])/g, ' $1')
+                      .replace(/[_\s]+/g, ' ')
+                      .trim();
+                    return spaced.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
                   };
 
                   return (
-                    <List.Item style={{ flexDirection: 'column', alignItems: 'flex-start', borderBottom: '1px solid #f0f0f0', padding: '16px 0' }}>
-                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <Text strong style={{ fontSize: '14px', color: '#1890ff' }}>{item.action.replace(/_/g, ' ')}</Text>
+                    <List.Item style={{ flexDirection: 'column', alignItems: 'flex-start', borderBottom: '1px solid #f5f5f5', padding: '14px 0' }}>
+                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                        <Text strong style={{ fontSize: '15px', color: '#262626', fontWeight: 600 }}>
+                          {formatTitle(item.action)}
+                        </Text>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
                           {dayjs(item.createdAt).format('DD MMM, hh:mm A')}
                         </Text>
                       </div>
                       
-                      <div style={{ paddingLeft: '8px', borderLeft: '2px solid #f0f0f0' }}>
-                        <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
-                          Performed by: <Text strong>{item.user?.name || 'System'}</Text>
-                        </Text>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
+                        <div style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
+                          <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>Performed By:</Text>
+                          <Text strong style={{ color: '#595959', fontWeight: 500 }}>{item.user?.name || 'System'}</Text>
+                        </div>
                         
-                        {details && Object.keys(details).length > 0 && (
-                          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px' }}>
-                            {Object.entries(details).map(([key, val]) => (
-                              <React.Fragment key={key}>
-                                <Text type="secondary" style={{ fontSize: '12px' }}>{labelMap[key] || key}:</Text>
-                                <Text style={{ fontSize: '12px', wordBreak: 'break-all' }}>{String(val)}</Text>
-                              </React.Fragment>
-                            ))}
-                          </div>
-                        )}
+                        {Object.entries(details).map(([key, val]) => {
+                          if (val === undefined || val === null) return null;
+                          
+                          let displayVal = String(val);
+                          const label = formatLabel(key);
+                          
+                          // Format numeric currency fields
+                          if (label.toLowerCase().includes('amount') && !displayVal.includes('₹')) {
+                            displayVal = `₹${displayVal}`;
+                          }
+
+                          return (
+                            <div key={key} style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
+                              <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>{label}:</Text>
+                              <Text style={{ color: '#434343', wordBreak: 'break-all' }}>{displayVal}</Text>
+                            </div>
+                          );
+                        })}
                       </div>
                     </List.Item>
                   );
@@ -587,8 +625,22 @@ export default function Tenants() {
             <Input.TextArea rows={2} />
           </Form.Item>
 
-          <Form.Item name="phoneNumber" label="Phone Number" rules={[{ required: true }]}>
-            <Input />
+          <Form.Item 
+            name="phoneNumber" 
+            label="Phone Number" 
+            rules={[
+              { required: true, message: 'Please enter a valid mobile number' },
+              { pattern: /^\d{10}$/, message: 'Phone number must contain 10 digits only' }
+            ]}
+          >
+            <Input 
+              placeholder="Enter 10-digit contact number" 
+              maxLength={10}
+              onInput={(e: any) => {
+                // Enforce numeric only directly while typing
+                e.target.value = e.target.value.replace(/\D/g, "");
+              }}
+            />
           </Form.Item>
 
           <Title level={5} style={{ marginTop: '16px' }}>Login Details</Title>

@@ -22,7 +22,7 @@ const getPlans = async (req, res) => {
         isTrial: true
       }
     });
-    
+
     plansCache = plans;
     plansCacheTime = Date.now();
 
@@ -48,12 +48,17 @@ const createPlan = async (req, res) => {
 // POST /api/tenants
 const createTenant = async (req, res) => {
   try {
-    const { 
-      businessName, ownerName, address, phoneNumber, 
-      mobile, password, planId 
+    const {
+      businessName, ownerName, address, phoneNumber,
+      mobile, password, planId
     } = req.body;
     if (!businessName || !ownerName || !address || !phoneNumber || !mobile || !password || !planId) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    const cleanPhone = phoneNumber.toString().replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Phone number must contain 10 digits only' });
     }
 
     const cleanMobile = mobile.replace(/\D/g, "");
@@ -61,8 +66,8 @@ const createTenant = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mobile number must be exactly 10 digits' });
     }
 
-    const existingUser = await prisma.user.findFirst({ 
-      where: { mobile: cleanMobile, isDeleted: false } 
+    const existingUser = await prisma.user.findFirst({
+      where: { mobile: cleanMobile, isDeleted: false }
     });
     if (existingUser) {
       return res.status(409).json({ success: false, message: 'Mobile number already in use' });
@@ -73,13 +78,13 @@ const createTenant = async (req, res) => {
 
     const result = await prisma.$transaction(async (tx) => {
       const hashedPassword = await bcrypt.hash(password, 12);
-      
+
       const tenant = await tx.tenant.create({
         data: {
           businessName,
           ownerName,
           address,
-          phoneNumber,
+          phoneNumber: cleanPhone,
           mobile: cleanMobile,
           password: hashedPassword,
           isActive: true,
@@ -159,11 +164,11 @@ const createTenant = async (req, res) => {
 // GET /api/tenants
 const getAllTenants = async (req, res) => {
   try {
-    const { 
-      search, status, planId, expiringSoon, 
-      minRevenue, maxRevenue, sort, page = 1, limit = 10 
+    const {
+      search, status, planId, expiringSoon,
+      minRevenue, maxRevenue, sort, page = 1, limit = 10
     } = req.query;
-    
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
     const now = new Date();
@@ -224,14 +229,14 @@ const getAllTenants = async (req, res) => {
           isSystem: true,
           totalBookings: true,
           createdAt: true,
-          subscriptions: { 
-            orderBy: { endDate: 'desc' }, 
-            take: 1, 
-            select: { 
-              status: true, 
-              endDate: true, 
-              plan: { select: { name: true } } 
-            } 
+          subscriptions: {
+            orderBy: { endDate: 'desc' },
+            take: 1,
+            select: {
+              status: true,
+              endDate: true,
+              plan: { select: { name: true } }
+            }
           }
         },
         orderBy,
@@ -241,8 +246,8 @@ const getAllTenants = async (req, res) => {
       prisma.tenant.count({ where })
     ]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: tenants,
       pagination: {
         total,
@@ -275,14 +280,14 @@ const getTenantById = async (req, res) => {
         isSystem: true,
         totalBookings: true,
         createdAt: true,
-        subscriptions: { 
-          orderBy: { endDate: 'desc' }, 
-          take: 1, 
-          select: { 
-            status: true, 
-            endDate: true, 
-            plan: { select: { name: true } } 
-          } 
+        subscriptions: {
+          orderBy: { endDate: 'desc' },
+          take: 1,
+          select: {
+            status: true,
+            endDate: true,
+            plan: { select: { name: true } }
+          }
         }
       }
     });
@@ -323,10 +328,18 @@ const getTenantActivity = async (req, res) => {
 const updateTenant = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      businessName, ownerName, address, phoneNumber, 
+    const {
+      businessName, ownerName, address, phoneNumber,
       mobile, isActive, isBlocked, accessLevel, password
     } = req.body;
+
+    let cleanPhone = phoneNumber;
+    if (phoneNumber) {
+      cleanPhone = phoneNumber.toString().replace(/\D/g, "");
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ success: false, message: 'Phone number must contain 10 digits only' });
+      }
+    }
 
     let cleanMobile = mobile;
     if (mobile) {
@@ -334,10 +347,22 @@ const updateTenant = async (req, res) => {
       if (cleanMobile.length !== 10) {
         return res.status(400).json({ success: false, message: 'Mobile number must be exactly 10 digits' });
       }
+
+      const existingUser = await prisma.user.findFirst({
+        where: { 
+          mobile: cleanMobile, 
+          tenantId: { not: id },
+          isDeleted: false
+        }
+      });
+      if (existingUser) {
+        return res.status(409).json({ success: false, message: 'Mobile number already assigned to another user' });
+      }
     }
 
     const updateData = {
-      businessName, ownerName, address, phoneNumber, 
+      businessName, ownerName, address, 
+      phoneNumber: cleanPhone,
       mobile: cleanMobile, isActive, isBlocked, accessLevel
     };
 
@@ -345,7 +370,7 @@ const updateTenant = async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 12);
       updateData.password = hashedPassword;
       console.log("Updated hashed password:", hashedPassword);
-      
+
       await prisma.user.updateMany({
         where: { tenantId: id, role: 'TENANT_ADMIN' },
         data: { password: hashedPassword }
@@ -455,18 +480,18 @@ const deleteTenant = async (req, res) => {
     await prisma.$transaction([
       prisma.tenant.update({
         where: { id },
-        data: { 
-          isDeleted: true, 
+        data: {
+          isDeleted: true,
           isActive: false,
-          deletedAt: new Date(), 
+          deletedAt: new Date(),
           deleteReason: reason,
           mobile: tenant.mobile + suffix
         }
       }),
       prisma.user.updateMany({
         where: { tenantId: id },
-        data: { 
-          isDeleted: true, 
+        data: {
+          isDeleted: true,
           isActive: false,
           deletedAt: new Date(),
           deleteReason: `Tenant deleted: ${reason}`,
@@ -517,9 +542,9 @@ const updateTenantStatus = async (req, res) => {
   }
 };
 
-module.exports = { 
-  getPlans, createPlan, createTenant, 
-  getAllTenants, getTenantById, getTenantActivity, 
+module.exports = {
+  getPlans, createPlan, createTenant,
+  getAllTenants, getTenantById, getTenantActivity,
   renewSubscription,
-  updateTenant, updateTenantStatus, deleteTenant 
+  updateTenant, updateTenantStatus, deleteTenant
 };

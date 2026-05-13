@@ -254,7 +254,9 @@ export default function RoomDetailScreen() {
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {STATUS_OPTIONS.map((s) => {
-              const isDisabled = room.status === 'OCCUPIED' && s === 'AVAILABLE';
+              const isDisabled = 
+                (room.status === 'OCCUPIED' && s === 'AVAILABLE') ||
+                (room.status === 'CLEANING' && s === 'OCCUPIED');
               return (
                 <TouchableOpacity
                   key={s}

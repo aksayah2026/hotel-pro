@@ -106,8 +106,8 @@ const login = async (req, res) => {
       sendTenantAdminNotification(
         user.tenantId,
         user.id,
-        '🚪 Staff Logged In',
-        `Staff ${user.name} logged into HotelPro.`,
+        '🔑 Staff Activity: Login',
+        `Staff member ${user.name} has successfully logged into the system.`,
         'STAFF_LOGIN'
       ).catch(err => console.error('Error sending login push:', err.message));
     }

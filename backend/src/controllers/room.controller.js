@@ -189,6 +189,13 @@ const updateRoomStatus = async (req, res) => {
     if (!existing) return res.status(403).json({ success: false, message: 'Unauthorized' });
 
     // Transition Rules
+    if (existing.status === 'CLEANING' && status === 'OCCUPIED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot mark a room as Occupied directly from Cleaning. Please set it to Available first.'
+      });
+    }
+
     if (existing.status === 'OCCUPIED' && status === 'AVAILABLE') {
       // Check if there is an active CHECKED_IN booking for this room
       const activeBooking = await prisma.bookingRoom.findFirst({

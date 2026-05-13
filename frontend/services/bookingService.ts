@@ -95,13 +95,18 @@ export const bookingService = {
 
   uploadAadhaar: async (uri: string) => {
     const formData = new FormData();
+    const filename = uri.split('/').pop() || 'aadhaar.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+
     formData.append('aadhaar', {
       uri,
-      name: 'aadhaar.jpg',
-      type: 'image/jpeg',
+      name: filename,
+      type,
     } as any);
+
     return api.post<{ success: boolean; data: { url: string } }>('/bookings/aadhaar/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Accept': 'application/json' },
     });
   },
 };

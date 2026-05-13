@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
-import { 
-  Card, 
-  Form, 
-  Input, 
-  Button, 
-  Select, 
-  Typography, 
-  message, 
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  Select,
+  Typography,
+  message,
   Divider,
   Row,
   Col,
@@ -85,18 +85,18 @@ export default function CreateTenant() {
           <Divider orientation={"left" as any}>Business Information</Divider>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item 
-                name="businessName" 
-                label="Hotel/Business Name" 
+              <Form.Item
+                name="businessName"
+                label="Hotel/Business Name"
                 rules={[{ required: true, message: 'Please enter hotel name' }]}
               >
                 <Input placeholder="e.g. Grand Residency" size="large" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item 
-                name="ownerName" 
-                label="Owner/Manager Name" 
+              <Form.Item
+                name="ownerName"
+                label="Owner/Manager Name"
                 rules={[{ required: true, message: 'Please enter owner name' }]}
               >
                 <Input placeholder="e.g. John Doe" size="large" />
@@ -104,9 +104,9 @@ export default function CreateTenant() {
             </Col>
           </Row>
 
-          <Form.Item 
-            name="address" 
-            label="Business Address" 
+          <Form.Item
+            name="address"
+            label="Business Address"
             rules={[{ required: true, message: 'Please enter address' }]}
           >
             <Input.TextArea rows={3} placeholder="Full physical address..." />
@@ -114,29 +114,16 @@ export default function CreateTenant() {
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item 
-                name="phoneNumber" 
-                label="Contact Phone Number" 
-                rules={[{ required: true, message: 'Please enter phone number' }]}
-              >
-                <Input placeholder="Official contact number" size="large" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider orientation={"left" as any}>Login Credentials</Divider>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item 
-                name="mobile" 
-                label="Login Mobile Number" 
+              <Form.Item
+                name="phoneNumber"
+                label="Contact Phone Number"
                 rules={[
-                  { required: true, message: 'Please enter mobile' },
-                  { pattern: /^\d{10}$/, message: 'Enter a valid 10-digit number' }
+                  { required: true, message: 'Please enter a valid mobile number' },
+                  { pattern: /^\d{10}$/, message: 'Phone number must contain 10 digits only' }
                 ]}
               >
                 <Input 
-                  placeholder="10-digit mobile number" 
+                  placeholder="10-digit contact number" 
                   size="large" 
                   maxLength={10}
                   onInput={(e: any) => {
@@ -145,10 +132,33 @@ export default function CreateTenant() {
                 />
               </Form.Item>
             </Col>
+          </Row>
+
+          <Divider orientation={"left" as any}>Login Credentials</Divider>
+          <Row gutter={16}>
             <Col span={12}>
-              <Form.Item 
-                name="password" 
-                label="Initial Password" 
+              <Form.Item
+                name="mobile"
+                label="Login Mobile Number"
+                rules={[
+                  { required: true, message: 'Please enter mobile' },
+                  { pattern: /^\d{10}$/, message: 'Enter a valid 10-digit number' }
+                ]}
+              >
+                <Input
+                  placeholder="10-digit mobile number"
+                  size="large"
+                  maxLength={10}
+                  onInput={(e: any) => {
+                    e.target.value = e.target.value.replace(/\D/g, "");
+                  }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="password"
+                label="Initial Password"
                 rules={[
                   { required: true, message: 'Please enter password' },
                   { min: 6, message: 'Password must be at least 6 characters' }
@@ -160,18 +170,18 @@ export default function CreateTenant() {
           </Row>
 
           <Divider orientation={"left" as any}>Subscription Plan</Divider>
-          <Form.Item 
-            name="planId" 
-            label="Initial Plan Selection" 
+          <Form.Item
+            name="planId"
+            label="Initial Plan Selection"
             rules={[{ required: true, message: 'Please select a plan' }]}
           >
-            <Select 
-              size="large" 
-              placeholder="Select a plan" 
+            <Select
+              size="large"
+              placeholder="Select a plan"
               onChange={(val) => {
                 const plan = plans.find(p => p.id === val);
                 if (plan) {
-                  form.setFieldsValue({ 
+                  form.setFieldsValue({
                     planPrice: plan.price,
                     discount: 0,
                     finalAmount: plan.price,
@@ -191,7 +201,7 @@ export default function CreateTenant() {
             </Select>
           </Form.Item>
 
-          <Form.Item 
+          <Form.Item
             noStyle
             shouldUpdate={(prev, curr) => prev.planId !== curr.planId || prev.finalAmount !== curr.finalAmount}
           >
@@ -221,8 +231,8 @@ export default function CreateTenant() {
                       </Form.Item>
                     </Col>
                     <Col span={6}>
-                      <Form.Item 
-                        name="discount" 
+                      <Form.Item
+                        name="discount"
                         label="Discount (₹)"
                         initialValue={0}
                         rules={[
@@ -237,10 +247,10 @@ export default function CreateTenant() {
                           }),
                         ]}
                       >
-                        <Input 
-                          type="number" 
-                          size="large" 
-                          prefix="₹" 
+                        <Input
+                          type="number"
+                          size="large"
+                          prefix="₹"
                           onChange={(e) => {
                             const discount = parseFloat(e.target.value) || 0;
                             const price = getFieldValue('planPrice') || 0;
@@ -255,16 +265,16 @@ export default function CreateTenant() {
                       </Form.Item>
                     </Col>
                     <Col span={6}>
-                      <Form.Item 
-                        name="paymentMethod" 
+                      <Form.Item
+                        name="paymentMethod"
                         label="Payment Method"
-                        rules={[{ 
-                          required: true, 
-                          message: 'Method required' 
+                        rules={[{
+                          required: true,
+                          message: 'Method required'
                         }]}
                       >
-                        <Select 
-                          size="large" 
+                        <Select
+                          size="large"
                           placeholder="Select Method"
                         >
                           <Option value="UPI">UPI / PhonePe / GPay</Option>
@@ -281,10 +291,10 @@ export default function CreateTenant() {
           </Form.Item>
 
           <div style={{ marginTop: '32px', textAlign: 'right' }}>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              size="large" 
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
               icon={<SaveOutlined />}
               loading={loading}
               style={{ minWidth: '200px' }}

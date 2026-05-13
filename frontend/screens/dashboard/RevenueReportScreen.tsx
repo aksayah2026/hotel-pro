@@ -28,7 +28,7 @@ export default function RevenueReportScreen() {
   const insets = useSafeAreaInsets();
 
   const [type, setType] = useState<'month' | 'year'>('month');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | null>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [data, setData] = useState<any>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,8 @@ export default function RevenueReportScreen() {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const params: any = { type, year: selectedYear };
+      const params: any = { type };
+      if (selectedYear) params.year = selectedYear;
       if (type === 'month' && selectedMonth) {
         params.month = selectedMonth;
       }
@@ -96,7 +97,15 @@ export default function RevenueReportScreen() {
             {(['month', 'year'] as const).map(t => (
               <TouchableOpacity
                 key={t}
-                onPress={() => { setType(t); setSelectedMonth(null); }}
+                onPress={() => { 
+                  setType(t); 
+                  setSelectedMonth(null);
+                  if (t === 'month') {
+                    setSelectedYear(prev => prev || new Date().getFullYear());
+                  } else {
+                    setSelectedYear(null);
+                  }
+                }}
                 style={{
                   flex: 1, paddingVertical: 8, alignItems: 'center',
                   backgroundColor: type === t ? colors.surface : 'transparent',
@@ -115,8 +124,22 @@ export default function RevenueReportScreen() {
           {/* Dropdowns logic */}
           <View style={{ gap: spacing.md }}>
              <View>
-               <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4, marginLeft: 4 }}>Select Year</Text>
+               <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4, marginLeft: 4 }}>
+                 Select Year {type === 'year' ? '(Optional)' : ''}
+               </Text>
                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+                  {type === 'year' && (
+                    <TouchableOpacity
+                      onPress={() => setSelectedYear(null)}
+                      style={{
+                        paddingHorizontal: spacing.lg, paddingVertical: 8,
+                        backgroundColor: selectedYear === null ? colors.primary : colors.backgroundSecondary,
+                        borderRadius: radius.full,
+                        borderWidth: 1, borderColor: selectedYear === null ? colors.primary : colors.border
+                      }}>
+                      <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: selectedYear === null ? colors.textOnPrimary : colors.textSecondary }}>All Years</Text>
+                    </TouchableOpacity>
+                  )}
                   {YEARS.map(y => (
                     <TouchableOpacity
                       key={y}
@@ -176,53 +199,79 @@ export default function RevenueReportScreen() {
         </Card>
 
         {/* Output Section */}
-        <View style={{ gap: spacing.md }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>
-              {type === 'month' ? (selectedMonth ? 'Specific Month' : 'Yearly Breakdown') : 'Lifetime Growth'}
-            </Text>
-            {loading && <ActivityIndicator size="small" color={colors.primary} />}
-          </View>
+        {(() => {
+          const isSingleView = (type === 'month' && selectedMonth !== null) || (type === 'year' && selectedYear !== null);
+          
+          let singleData: { label: string; amount: number } | null = null;
+          if (isSingleView) {
+            if (type === 'month') {
+              if (data && data.amount !== undefined) {
+                singleData = { label: data.label, amount: data.amount };
+              }
+            } else {
+              if (Array.isArray(data)) {
+                const item = data.find((d: any) => d.year === selectedYear);
+                singleData = { 
+                  label: `Year ${selectedYear}`, 
+                  amount: item ? item.amount : 0 
+                };
+              }
+            }
+          }
 
-          {loading ? null : (
-            <Card style={{ padding: 0, overflow: 'hidden' }}>
-              {type === 'month' && selectedMonth && data.amount !== undefined ? (
-                <View style={{ padding: spacing.xl, alignItems: 'center', gap: spacing.sm }}>
-                  <TrendingUp size={32} color={colors.success} />
-                  <Text style={{ fontSize: fontSize.lg, color: colors.textMuted }}>{data.label}</Text>
-                  <Text style={{ fontSize: fontSize['4xl'], fontWeight: fontWeight.extraBold as any, color: colors.textPrimary }}>
-                    ₹{data.amount.toLocaleString('en-IN')}
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={data}
-                  keyExtractor={(item, index) => index.toString()}
-                  scrollEnabled={false}
-                  contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.sm }}
-                  renderItem={({ item }) => (
-                    <View style={{
-                      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                      paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider
-                    }}>
-                      <Text style={{ fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.semiBold as any }}>
-                        {item.label || item.year}
-                      </Text>
-                      <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.primary }}>
-                        ₹{item.amount.toLocaleString('en-IN')}
-                      </Text>
-                    </View>
-                  )}
-                  ListEmptyComponent={
-                    <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-                      <Text style={{ color: colors.textMuted }}>No data found for this period</Text>
-                    </View>
+          return (
+            <View style={{ gap: spacing.md }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>
+                  {type === 'month' 
+                    ? (selectedMonth ? 'Specific Month' : 'Yearly Breakdown') 
+                    : (selectedYear ? 'Specific Year' : 'Lifetime Growth')
                   }
-                />
+                </Text>
+                {loading && <ActivityIndicator size="small" color={colors.primary} />}
+              </View>
+
+              {loading ? null : (
+                <Card style={{ padding: 0, overflow: 'hidden' }}>
+                  {isSingleView && singleData ? (
+                    <View style={{ padding: spacing.xl, alignItems: 'center', gap: spacing.sm }}>
+                      <TrendingUp size={32} color={colors.success} />
+                      <Text style={{ fontSize: fontSize.lg, color: colors.textMuted }}>{singleData.label}</Text>
+                      <Text style={{ fontSize: fontSize['4xl'], fontWeight: fontWeight.extraBold as any, color: colors.textPrimary }}>
+                        ₹{singleData.amount.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={data}
+                      keyExtractor={(item, index) => index.toString()}
+                      scrollEnabled={false}
+                      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.sm }}
+                      renderItem={({ item }) => (
+                        <View style={{
+                          flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                          paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider
+                        }}>
+                          <Text style={{ fontSize: fontSize.md, color: colors.textPrimary, fontWeight: fontWeight.semiBold as any }}>
+                            {item.label || item.year}
+                          </Text>
+                          <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.primary }}>
+                            ₹{item.amount.toLocaleString('en-IN')}
+                          </Text>
+                        </View>
+                      )}
+                      ListEmptyComponent={
+                        <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+                          <Text style={{ color: colors.textMuted }}>No data found for this period</Text>
+                        </View>
+                      }
+                    />
+                  )}
+                </Card>
               )}
-            </Card>
-          )}
-        </View>
+            </View>
+          );
+        })()}
 
       </ScrollView>
     </View>

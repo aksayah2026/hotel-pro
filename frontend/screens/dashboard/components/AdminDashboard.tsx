@@ -70,7 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View>
             <Text style={{ fontSize: fontSize.xs, color: colors.textOnPrimary, opacity: 0.8, fontWeight: fontWeight.medium as any }}>
-              {revenueType.toUpperCase()} REVENUE
+              {revenueType === 'today' ? "TODAY'S REVENUE" : revenueType === 'month' ? "MONTHLY REVENUE" : "YEARLY REVENUE"}
             </Text>
             <Text style={{ fontSize: fontSize['5xl'], fontWeight: fontWeight.extraBold as any, color: colors.textOnPrimary, marginTop: 4 }}>
               {formatCurrency(revenue?.value ?? 0)}

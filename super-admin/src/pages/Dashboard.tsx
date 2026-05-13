@@ -1,14 +1,14 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import api from '../api';
 
-import { 
-  Card, Row, Col, Statistic, Typography, Table, Tag, message, 
+import {
+  Card, Row, Col, Statistic, Typography, Table, Tag, message,
   List, Avatar, Space, Select, DatePicker, Button, Tooltip
 } from 'antd';
 
-import { 
-  TeamOutlined, 
-  CheckCircleOutlined, 
+import {
+  TeamOutlined,
+  CheckCircleOutlined,
   ClockCircleOutlined,
   CalendarOutlined,
   ArrowUpOutlined,
@@ -50,6 +50,7 @@ export default function Dashboard() {
 
 
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [loadCharts, setLoadCharts] = useState(false);
   const [filter, setFilter] = useState({
     type: 'monthly',
@@ -57,6 +58,45 @@ export default function Dashboard() {
     month: dayjs().month() + 1,
     planId: undefined
   });
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    message.loading({ content: 'Preparing report...', key: 'exporting' });
+    try {
+      const res = await api.get('/dashboard/super-admin/export', {
+        params: filter,
+        responseType: 'blob'
+      });
+      
+      // Build precise Dynamic Filename matching filter state
+      let formattedName = `Executive_Overview_Year_${filter.year}.csv`;
+      if (filter.type === 'monthly') {
+        const monthStr = dayjs().month(filter.month - 1).format('MMMM');
+        formattedName = `Executive_Overview_${monthStr}_${filter.year}.csv`;
+      }
+
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', formattedName);
+      document.body.appendChild(link);
+      
+      // Trigger Native Browser Save Stream
+      link.click();
+      
+      // Clean cache to prevent Memory leak
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      message.success({ content: 'Report downloaded successfully!', key: 'exporting', duration: 3 });
+    } catch (err) {
+      console.error('Dashboard export failed', err);
+      message.error({ content: 'Failed to generate report. Please try again later.', key: 'exporting', duration: 3 });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -96,10 +136,10 @@ export default function Dashboard() {
       key: 'status',
       render: (_: any, record: any) => (
         <Tag color={
-          record.status === 'ACTIVE' ? 'success' : 
-          record.status === 'EXPIRED' ? 'error' : 
-          record.status === 'INACTIVE' ? 'default' : 
-          'processing'
+          record.status === 'ACTIVE' ? 'success' :
+            record.status === 'EXPIRED' ? 'error' :
+              record.status === 'INACTIVE' ? 'default' :
+                'processing'
         }>
           {(record.status || 'N/A').toUpperCase()}
         </Tag>
@@ -123,35 +163,41 @@ export default function Dashboard() {
           <Text type="secondary">Real-time platform performance and platform revenue analytics</Text>
         </div>
         <Space size="middle">
-          <Select 
-            value={filter.type} 
+          <Select
+            value={filter.type}
             onChange={(val) => setFilter({ ...filter, type: val })}
             style={{ width: 120 }}
           >
             <Option value="monthly">Monthly</Option>
             <Option value="yearly">Yearly</Option>
           </Select>
-          
+
           {filter.type === 'monthly' ? (
-            <DatePicker 
-              picker="month" 
+            <DatePicker
+              picker="month"
               value={dayjs().year(filter.year).month(filter.month - 1)}
               onChange={(date) => setFilter({ ...filter, year: date?.year(), month: (date?.month() || 0) + 1 })}
               allowClear={false}
             />
           ) : (
-            <DatePicker 
-              picker="year" 
+            <DatePicker
+              picker="year"
               value={dayjs().year(filter.year)}
               onChange={(date) => setFilter({ ...filter, year: date?.year() })}
               allowClear={false}
             />
           )}
-          
-          <Button icon={<DownloadOutlined />}>Export</Button>
+
+          <Button 
+            icon={<DownloadOutlined />} 
+            loading={exportLoading} 
+            onClick={handleExport}
+          >
+            Export
+          </Button>
         </Space>
       </div>
-      
+
       <Row gutter={[24, 24]}>
         <Col xs={24} sm={12} lg={6}>
           <Card variant="borderless" className="stat-card" loading={loading}>
@@ -222,10 +268,10 @@ export default function Dashboard() {
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col xs={24} lg={16}>
           <Card title="Recently Joined Hotels" variant="borderless" extra={<CalendarOutlined />}>
-            <Table 
-              columns={columns} 
-              dataSource={data.recentTenants} 
-              pagination={false} 
+            <Table
+              columns={columns}
+              dataSource={data.recentTenants}
+              pagination={false}
               loading={loading}
               rowKey="id"
               size="middle"
@@ -233,9 +279,9 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card 
-            title="Expiring Soon (7 Days)" 
-            variant="borderless" 
+          <Card
+            title="Expiring Soon (7 Days)"
+            variant="borderless"
             extra={<ClockCircleOutlined style={{ color: '#faad14' }} />}
             bodyStyle={{ padding: '0 24px' }}
           >
@@ -261,18 +307,18 @@ export default function Dashboard() {
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={24}>
           <Card title="Tenant-wise Revenue Breakdown" variant="borderless" extra={<Text type="secondary">Top 10 Contributors</Text>}>
-            <Table 
-              dataSource={data.tenantWise} 
+            <Table
+              dataSource={data.tenantWise}
               pagination={false}
               rowKey="name"
               size="middle"
               loading={loading}
               locale={{ emptyText: 'No revenue records found' }}
               columns={[
-                { 
-                  title: 'Hotel Name', 
-                  dataIndex: 'name', 
-                  key: 'name', 
+                {
+                  title: 'Hotel Name',
+                  dataIndex: 'name',
+                  key: 'name',
                   render: (t, record) => (
                     <Space>
                       <Text strong type={record.isDeleted ? 'secondary' : undefined}>
@@ -280,16 +326,16 @@ export default function Dashboard() {
                       </Text>
                       {record.isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
                     </Space>
-                  ) 
+                  )
                 },
-                { 
-                  title: 'Lifetime SaaS Revenue', 
-                  dataIndex: 'revenue', 
-                  key: 'revenue', 
+                {
+                  title: 'Lifetime SaaS Revenue',
+                  dataIndex: 'revenue',
+                  key: 'revenue',
                   render: (a, record) => (
                     <Text style={{ color: record.isDeleted ? '#8c8c8c' : '#52c41a' }}>
                       ₹{Number(a || 0).toLocaleString('en-IN')}
-                    </Text> 
+                    </Text>
                   )
                 },
               ]}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, KeyboardAvoidingView,
-  Platform, StatusBar, Alert, TouchableOpacity,
+  Platform, StatusBar, Alert, TouchableOpacity, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lock, Smartphone } from 'lucide-react-native';
@@ -53,27 +53,17 @@ export default function LoginScreen() {
 
           {/* Logo / Brand */}
           <View style={{ alignItems: 'center', marginBottom: spacing['3xl'] }}>
-            <View style={{
-              width: 80, height: 80, borderRadius: radius.xl,
-              backgroundColor: colors.primary,
-              justifyContent: 'center', alignItems: 'center',
-              marginBottom: spacing.base,
-              ...theme.shadow.lg,
-            }}>
-              <Text style={{ fontSize: 36 }}>🏨</Text>
-            </View>
-            <Text style={{
-              fontSize: fontSize['3xl'],
-              fontWeight: fontWeight.extraBold as any,
-              color: colors.textPrimary,
-              letterSpacing: -0.5,
-            }}>
-              HotelPro
-            </Text>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={{
+                width: 200,
+                height: 200,
+                resizeMode: 'contain',
+              }}
+            />
             <Text style={{
               fontSize: fontSize.sm,
               color: colors.textMuted,
-              marginTop: spacing.xs,
               letterSpacing: 0.3,
             }}>
               Hotel Management System
