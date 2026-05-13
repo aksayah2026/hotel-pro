@@ -304,7 +304,7 @@ const createBooking = async (req, res) => {
       req.user.tenantId,
       req.user.id,
       '🆕 Booking Confirmed',
-      `Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: A new booking has been successfully created by ${req.user.name}.`,
+      `Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: A new booking has been successfully created by ${req.user.name || 'Admin'}.`,
       'NEW_BOOKING',
       { bookingId: fullBooking.id }
     );
@@ -368,7 +368,7 @@ const checkIn = async (req, res) => {
       req.user.tenantId,
       req.user.id,
       '🔑 Guest Check-In Completed',
-      `Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: Check-in processed for ${result.customer?.name || 'Guest'} by ${req.user.name}.`,
+      `Room ${result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: Check-in processed for ${result.customer?.name || 'Guest'} by ${req.user.name || 'Admin'}.`,
       'GUEST_CHECK_IN',
       { bookingId: result.id }
     );
@@ -477,7 +477,7 @@ const checkOut = async (req, res) => {
       req.user.tenantId,
       req.user.id,
       '🚪 Guest Check-Out Completed',
-      `Room ${result.bookingRooms.map(br => br.room?.roomNumber).join(', ')}: Check-out completed for ${result.customer?.name || 'Guest'} by ${req.user.name}.`,
+      `Room ${result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: Check-out completed for ${result.customer?.name || 'Guest'} by ${req.user.name || 'Admin'}.`,
       'GUEST_CHECK_OUT',
       { bookingId: result.id }
     );
@@ -493,7 +493,7 @@ const cancelBooking = async (req, res) => {
   try {
     const booking = await prisma.booking.findFirst({
       where: { id: req.params.id, tenantId: req.user.tenantId },
-      include: { bookingRooms: true },
+      include: { bookingRooms: { include: { room: true } } },
     });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     if (['COMPLETED', 'CANCELLED'].includes(booking.status)) {
@@ -539,7 +539,7 @@ const cancelBooking = async (req, res) => {
       req.user.tenantId,
       req.user.id,
       '❌ Booking Cancelled',
-      `Booking #${updated.bookingNumber} (Room ${updated.bookingRooms?.map(br => br.room?.roomNumber).join(', ') || 'N/A'}) has been cancelled by ${req.user.name}.`,
+      `Booking #${updated.bookingNumber} (Room ${booking.bookingRooms?.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}) has been cancelled by ${req.user.name || 'Admin'}.`,
       'BOOKING_CANCELLATION',
       { bookingId: updated.id }
     );

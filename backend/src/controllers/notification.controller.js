@@ -118,6 +118,17 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+// DELETE /api/notifications/clear
+const clearAllNotifications = async (req, res) => {
+  try {
+    await prisma.notification.deleteMany({
+      where: { userId: req.user.id, tenantId: req.user.tenantId },
+    });
+
+    res.json({ success: true, message: 'All notifications cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 // DELETE /api/notifications/tokens
 const deletePushToken = async (req, res) => {
   try {
@@ -142,5 +153,6 @@ module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
+  clearAllNotifications,
   deletePushToken,
 };

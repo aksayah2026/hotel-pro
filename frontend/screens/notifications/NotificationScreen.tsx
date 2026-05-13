@@ -22,11 +22,12 @@ export default function NotificationScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL');
 
   const fetchNotifications = async (isRef = false) => {
     if (isRef) setRefreshing(true);
     try {
-      const res = await notificationService.getAll(1, 50);
+      const res = await notificationService.getAll(1, 100); // Load reasonable chunk for display
       setNotifications(res.data.data);
       setUnreadCount(res.data.unreadCount || 0);
     } catch {
@@ -61,9 +62,35 @@ export default function NotificationScreen() {
       await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      Alert.alert("Success", "All notifications marked as read.");
     } catch {
       Alert.alert('Error', 'Failed to mark all as read');
     }
+  };
+
+  const handleClearAll = () => {
+    if (notifications.length === 0) return;
+    Alert.alert(
+      "Clear all notifications?",
+      "This will permanently remove all your notifications.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Clear", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await notificationService.clearAll();
+              setNotifications([]);
+              setUnreadCount(0);
+              Alert.alert("Cleared", "All notifications have been removed.");
+            } catch (err) {
+              Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const getTypeIcon = (type: string) => {
@@ -91,77 +118,100 @@ export default function NotificationScreen() {
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => {
-        if (!item.isRead) handleMarkAsRead(item.id);
-        // Navigation helper depending on the type
-        navigation.navigate('Main', { screen: 'Bookings' });
-      }}
-    >
-      <Card
-        style={{
-          marginBottom: spacing.xs,
-          borderLeftWidth: 4,
-          borderLeftColor: item.isRead ? 'transparent' : colors.primary,
-          backgroundColor: item.isRead ? colors.surface : colors.primary + '05',
-        }}
-        padding={spacing.base}
-      >
-        <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' }}>
-          <View style={{
-            width: 40, height: 40, borderRadius: radius.full,
-            backgroundColor: getTypeColor(item.type),
-            justifyContent: 'center', alignItems: 'center'
-          }}>
-            {getTypeIcon(item.type)}
-          </View>
+  const filteredNotifications = notifications.filter(item => {
+    if (activeTab === 'UNREAD') return !item.isRead;
+    if (activeTab === 'READ') return item.isRead;
+    return true;
+  });
 
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{
-                fontSize: fontSize.sm,
-                fontWeight: item.isRead ? fontWeight.medium as any : fontWeight.bold as any,
-                color: colors.textPrimary,
-                flex: 1, marginRight: spacing.xs
-              }}>
-                {item.title}
-              </Text>
-              {!item.isRead && (
-                <View style={{
-                  width: 8, height: 8, borderRadius: 4,
-                  backgroundColor: colors.primary
-                }} />
-              )}
+  const renderNotification = ({ item }: { item: Notification }) => {
+    const isUnread = !item.isRead;
+    const isNewEvent = isUnread && (Date.now() - new Date(item.createdAt).getTime() < 24 * 60 * 60 * 1000);
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => {
+          if (isUnread) handleMarkAsRead(item.id);
+          navigation.navigate('Main', { screen: 'Bookings' });
+        }}
+      >
+        <Card
+          style={{
+            marginBottom: spacing.md,
+            borderLeftWidth: isUnread ? 4 : 0,
+            borderLeftColor: isUnread ? '#5B3FFF' : 'transparent',
+            backgroundColor: isUnread ? '#F3F0FF' : colors.surface,
+            borderRadius: radius.md,
+            borderWidth: isUnread ? 0 : 1,
+            borderColor: colors.divider,
+            ...theme.shadow.sm,
+          }}
+          padding={spacing.base}
+        >
+          <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' }}>
+            <View style={{
+              width: 40, height: 40, borderRadius: radius.full,
+              backgroundColor: getTypeColor(item.type),
+              justifyContent: 'center', alignItems: 'center'
+            }}>
+              {getTypeIcon(item.type)}
             </View>
 
-            <Text style={{
-              fontSize: fontSize.xs, color: colors.textSecondary,
-              marginTop: 4, lineHeight: 16
-            }}>
-              {item.message}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flex: 1, flexWrap: 'wrap' }}>
+                  <Text style={{
+                    fontSize: fontSize.sm,
+                    fontWeight: isUnread ? fontWeight.bold as any : fontWeight.medium as any,
+                    color: colors.textPrimary,
+                    marginRight: spacing.xs
+                  }}>
+                    {item.title}
+                  </Text>
+                  {isNewEvent && (
+                    <Badge label="NEW" variant="booked" size="sm" />
+                  )}
+                </View>
+                {isUnread && (
+                  <View style={{
+                    width: 10, height: 10, borderRadius: 5,
+                    backgroundColor: '#5B3FFF',
+                    marginLeft: spacing.xs
+                  }} />
+                )}
+              </View>
 
-            <Text style={{
-              fontSize: fontSize.xs, color: colors.textMuted,
-              marginTop: 8
-            }}>
-              {new Date(item.createdAt).toLocaleDateString('en-IN', {
-                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-              })}
-            </Text>
+              <Text style={{
+                fontSize: fontSize.xs, color: isUnread ? colors.textPrimary : colors.textSecondary,
+                lineHeight: 18, marginTop: 2,
+                fontWeight: isUnread ? '500' as any : '400' as any
+              }}>
+                {item.message}
+              </Text>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.sm }}>
+                <Text style={{
+                  fontSize: 11, color: isUnread ? colors.primary : colors.textMuted,
+                  fontWeight: isUnread ? fontWeight.bold as any : fontWeight.medium as any
+                }}>
+                  {new Date(item.createdAt).toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  })}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/* Header Section */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         paddingHorizontal: spacing.base,
@@ -187,21 +237,93 @@ export default function NotificationScreen() {
           </View>
         </View>
 
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            onPress={handleMarkAllAsRead}
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 4,
-              paddingVertical: 6, paddingHorizontal: spacing.sm,
-              borderRadius: radius.md, backgroundColor: colors.primary + '10'
-            }}
-          >
-            <Check size={14} color={colors.primary} />
-            <Text style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold as any, color: colors.primary }}>
-              Mark all read
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              onPress={handleMarkAllAsRead}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                paddingVertical: 6, paddingHorizontal: spacing.sm,
+                borderRadius: radius.md, backgroundColor: colors.primary + '12'
+              }}
+            >
+              <Check size={14} color={colors.primary} />
+              <Text style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold as any, color: colors.primary }}>
+                Read All
+              </Text>
+            </TouchableOpacity>
+          )}
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              onPress={handleClearAll}
+              style={{
+                padding: 8, borderRadius: radius.md,
+                backgroundColor: colors.errorBg,
+                justifyContent: 'center', alignItems: 'center'
+              }}
+            >
+              <Trash2 size={16} color={colors.error} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Filter Tab Segment */}
+      <View style={{
+        flexDirection: 'row',
+        paddingHorizontal: spacing.base,
+        paddingVertical: spacing.md,
+        backgroundColor: colors.surface,
+        gap: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.divider
+      }}>
+        {(['ALL', 'UNREAD', 'READ'] as const).map((tab) => {
+          const isActive = activeTab === tab;
+          const count = tab === 'UNREAD' ? unreadCount : tab === 'READ' ? notifications.filter(n => n.isRead).length : notifications.length;
+          
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingHorizontal: spacing.md,
+                borderRadius: radius.full,
+                backgroundColor: isActive ? '#5B3FFF' : colors.background,
+                borderWidth: 1,
+                borderColor: isActive ? '#5B3FFF' : colors.divider,
+                gap: 6
+              }}
+            >
+              <Text style={{
+                fontSize: fontSize.xs,
+                fontWeight: fontWeight.bold as any,
+                color: isActive ? colors.textOnPrimary : colors.textSecondary
+              }}>
+                {tab === 'ALL' ? 'All' : tab === 'UNREAD' ? 'Unread' : 'Read'}
+              </Text>
+              {count > 0 && (
+                <View style={{
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : colors.neutral,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: radius.sm
+                }}>
+                  <Text style={{
+                    fontSize: 10,
+                    fontWeight: fontWeight.bold as any,
+                    color: isActive ? colors.textOnPrimary : colors.textSecondary
+                  }}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (
@@ -210,7 +332,7 @@ export default function NotificationScreen() {
         </View>
       ) : (
         <FlatList
-          data={notifications}
+          data={filteredNotifications}
           keyExtractor={(item) => item.id}
           renderItem={renderNotification}
           refreshControl={
@@ -222,14 +344,19 @@ export default function NotificationScreen() {
           }
           contentContainerStyle={{
             padding: spacing.base,
+            paddingBottom: spacing.xl * 2,
             flexGrow: 1
           }}
           ListEmptyComponent={
-            <EmptyState
-              icon={<Bell size={56} color={colors.textMuted} />}
-              title="All caught up!"
-              message="No notifications yet. Real-time alerts will appear here."
-            />
+            <View style={{ flex: 1, justifyContent: 'center', marginTop: spacing.xl }}>
+              <EmptyState
+                icon={<Bell size={56} color={colors.textMuted} />}
+                title={activeTab === 'UNREAD' ? "No unread alerts" : activeTab === 'READ' ? "No read alerts" : "All caught up!"}
+                message={activeTab === 'UNREAD' 
+                  ? "You have read all your recent notifications." 
+                  : "Notifications and event alerts will appear here."}
+              />
+            </View>
           }
         />
       )}

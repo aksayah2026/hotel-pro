@@ -7,6 +7,7 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
+  clearAllNotifications,
   deletePushToken,
 } = require('../controllers/notification.controller');
 
@@ -41,5 +42,9 @@ router.patch('/:id/read', authenticate, markAsRead);
 // 6. Mark All Notifications as Read
 // PATCH /api/notifications/read-all
 router.patch('/read-all', authenticate, markAllAsRead);
+
+// 7. Clear All User Notifications
+// DELETE /api/notifications/clear
+router.delete('/clear', authenticate, clearAllNotifications);
 
 module.exports = router;

@@ -22,6 +22,7 @@ const authenticate = async (req, res, next) => {
     req.user = {
       id: decoded.userId,
       role: decoded.role,
+      name: decoded.userName,
       tenantId: decoded.tenantId,
       tenant: { accessLevel: decoded.accessLevel },
       subscriptionStatus: decoded.subscriptionStatus,

@@ -7,6 +7,7 @@ const generateToken = (user, subscriptionStatus = 'ACTIVE', subscriptionEndDate 
     userId: user.id,
     tenantId: user.tenantId,
     role: user.role,
+    userName: user.name,
     accessLevel: user.tenant?.accessLevel || 'FULL',
     subscriptionStatus,
     subscriptionEndDate

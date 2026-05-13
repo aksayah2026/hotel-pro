@@ -36,4 +36,9 @@ export const notificationService = {
   markAllAsRead: () => {
     return api.patch('/notifications/read-all');
   },
+  
+  // Clear all notifications
+  clearAll: () => {
+    return api.delete('/notifications/clear');
+  },
 };
