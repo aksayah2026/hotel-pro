@@ -102,13 +102,14 @@ const login = async (req, res) => {
     });
 
     // Trigger login push notification if the user is staff and belongs to a tenant
-    if (user.tenantId && user.role !== 'TENANT_ADMIN') {
-      const { sendTenantAdminNotification } = require('../utils/push');
-      sendTenantAdminNotification(
+    if (user.tenantId && user.role === 'STAFF') {
+      const { sendAdminNotification } = require('../utils/push');
+      const actorName = user.name || 'Staff';
+      sendAdminNotification(
         user.tenantId,
         user.id,
         '🔑 Staff Activity: Login',
-        `Staff member ${user.name} has successfully logged into the system.`,
+        `Staff member ${actorName} has successfully logged into the system.`,
         'STAFF_LOGIN'
       ).catch(err => console.error('Error sending login push:', err.message));
     }

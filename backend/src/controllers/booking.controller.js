@@ -1,7 +1,7 @@
 const prisma = require('../lib/prisma');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const { sendTenantBulkNotification, sendTenantAdminNotification } = require('../utils/push');
+const { sendSmartNotification, sendStaffNotification } = require('../utils/push');
 
 // Generate booking number
 const generateBookingNumber = () => {
@@ -299,15 +299,19 @@ const createBooking = async (req, res) => {
       },
     });
 
-    // Send push notification for new booking to Tenant Admin
-    sendTenantAdminNotification(
+    // Send smart routing notification for new booking
+    const roomStr = fullBooking.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A';
+    const actorName = req.user.name || (req.user.role === 'TENANT_ADMIN' ? 'Admin' : 'Staff');
+
+    sendSmartNotification(
       req.user.tenantId,
       req.user.id,
-      '🆕 Booking Confirmed',
-      `Room ${fullBooking.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: A new booking has been successfully created by ${req.user.name || 'Admin'}.`,
+      req.user.role,
+      '🆕 Booking Created',
+      `New booking created by ${actorName} for Room ${roomStr}.`,
       'NEW_BOOKING',
       { bookingId: fullBooking.id }
-    );
+    ).catch(err => console.error('Booking push error:', err.message));
 
     res.status(201).json({ success: true, data: fullBooking });
   } catch (error) {
@@ -363,15 +367,19 @@ const checkIn = async (req, res) => {
       return updated;
     });
 
-    // Send push notification for guest check-in to Tenant Admin
-    sendTenantAdminNotification(
+    // Send smart routing notification for guest check-in
+    const roomStr = result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A';
+    const actorName = req.user.name || (req.user.role === 'TENANT_ADMIN' ? 'Admin' : 'Staff');
+
+    sendSmartNotification(
       req.user.tenantId,
       req.user.id,
-      '🔑 Guest Check-In Completed',
-      `Room ${result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: Check-in processed for ${result.customer?.name || 'Guest'} by ${req.user.name || 'Admin'}.`,
+      req.user.role,
+      '🔑 Guest Checked In',
+      `Guest ${result.customer?.name || 'Guest'} checked in by ${actorName} - Room ${roomStr}.`,
       'GUEST_CHECK_IN',
       { bookingId: result.id }
-    );
+    ).catch(err => console.error('Check-in push error:', err.message));
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -472,15 +480,33 @@ const checkOut = async (req, res) => {
       return updated;
     });
 
-    // Send push notification for guest check-out to Tenant Admin
-    sendTenantAdminNotification(
+    // Send smart routing notification for guest check-out
+    const roomStr = result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A';
+    const actorName = req.user.name || (req.user.role === 'TENANT_ADMIN' ? 'Admin' : 'Staff');
+
+    sendSmartNotification(
       req.user.tenantId,
       req.user.id,
+      req.user.role,
       '🚪 Guest Check-Out Completed',
-      `Room ${result.bookingRooms.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}: Check-out completed for ${result.customer?.name || 'Guest'} by ${req.user.name || 'Admin'}.`,
+      `Room ${roomStr} moved to Cleaning after checkout by ${actorName}.`,
       'GUEST_CHECK_OUT',
       { bookingId: result.id }
-    );
+    ).catch(err => console.error('Check-out push error:', err.message));
+
+    // Explicitly trigger Room Requires Cleaning alert to staff (Requirement 1.D)
+    result.bookingRooms.forEach(br => {
+      if (br.room) {
+        sendStaffNotification(
+          req.user.tenantId,
+          req.user.id,
+          '🧹 Room Requires Cleaning',
+          `Room ${br.room.roomNumber} is now marked for cleaning.`,
+          'ROOM_CLEANING',
+          { roomId: br.room.id, roomNumber: br.room.roomNumber }
+        ).catch(err => console.error('Housekeeping alert push error:', err.message));
+      }
+    });
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -534,15 +560,19 @@ const cancelBooking = async (req, res) => {
       return b;
     });
 
-    // Send push notification for booking cancellation to Tenant Admin
-    sendTenantAdminNotification(
+    // Send smart routing notification for booking cancellation
+    const roomStr = booking.bookingRooms?.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A';
+    const actorName = req.user.name || (req.user.role === 'TENANT_ADMIN' ? 'Admin' : 'Staff');
+
+    sendSmartNotification(
       req.user.tenantId,
       req.user.id,
+      req.user.role,
       '❌ Booking Cancelled',
-      `Booking #${updated.bookingNumber} (Room ${booking.bookingRooms?.map(br => br.room?.roomNumber || 'N/A').filter(Boolean).join(', ') || 'N/A'}) has been cancelled by ${req.user.name || 'Admin'}.`,
+      `Booking #${updated.bookingNumber} (Room ${roomStr}) has been cancelled by ${actorName}.`,
       'BOOKING_CANCELLATION',
       { bookingId: updated.id }
-    );
+    ).catch(err => console.error('Cancellation push error:', err.message));
 
     res.json({ success: true, data: updated });
   } catch (error) {

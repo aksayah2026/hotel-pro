@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { sendAdminNotification, sendStaffNotification } = require('../utils/push');
 
 // GET /api/rooms
 const getAllRooms = async (req, res) => {
@@ -220,6 +221,33 @@ const updateRoomStatus = async (req, res) => {
       where: { id: req.params.id },
       data: { status },
     });
+
+    // Trigger real-time status change alerts
+    const actorName = req.user.name || (req.user.role === 'TENANT_ADMIN' ? 'Admin' : 'Staff');
+
+    // 1. If Staff completes cleaning (CLEANING -> AVAILABLE): Notify Admin (Requirement 2.D)
+    if (req.user.role === 'STAFF' && existing.status === 'CLEANING' && status === 'AVAILABLE') {
+      sendAdminNotification(
+        req.user.tenantId,
+        req.user.id,
+        '✅ Room Ready',
+        `Room ${room.roomNumber} cleaning completed and marked as Available by ${actorName}.`,
+        'ROOM_READY',
+        { roomId: room.id, roomNumber: room.roomNumber }
+      ).catch(err => console.error('Room ready push error:', err.message));
+    }
+
+    // 2. If Room becomes CLEANING: Notify Staff (Requirement 1.D)
+    if (status === 'CLEANING') {
+      sendStaffNotification(
+        req.user.tenantId,
+        req.user.id,
+        '🧹 Room Requires Cleaning',
+        `Room ${room.roomNumber} is now marked for cleaning.`,
+        'ROOM_CLEANING',
+        { roomId: room.id, roomNumber: room.roomNumber }
+      ).catch(err => console.error('Housekeeping push error:', err.message));
+    }
     res.json({ success: true, data: room });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

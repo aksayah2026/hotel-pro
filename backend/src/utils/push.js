@@ -208,8 +208,74 @@ const sendTenantAdminNotification = async (tenantId, createdByUserId, title, mes
   }
 };
 
+/**
+ * Send push and in-app notification specifically to active Tenant Admins of a tenant.
+ * Automatically excludes the actor if they are an admin themselves.
+ */
+const sendAdminNotification = async (tenantId, actorUserId, title, message, type, data = {}) => {
+  try {
+    const admins = await prisma.user.findMany({
+      where: {
+        tenantId,
+        role: 'TENANT_ADMIN',
+        isActive: true,
+        isDeleted: false,
+        id: { not: actorUserId }
+      },
+      select: { id: true }
+    });
+    const adminIds = admins.map(a => a.id);
+    if (adminIds.length === 0) return;
+
+    await sendPushNotification(adminIds, title, message, type, data);
+  } catch (error) {
+    console.error('sendAdminNotification error:', error.message);
+  }
+};
+
+/**
+ * Send push and in-app notification specifically to all active Staff users.
+ * Automatically excludes the actor if they are a staff member themselves.
+ */
+const sendStaffNotification = async (tenantId, actorUserId, title, message, type, data = {}) => {
+  try {
+    const staff = await prisma.user.findMany({
+      where: {
+        tenantId,
+        role: 'STAFF',
+        isActive: true,
+        isDeleted: false,
+        id: { not: actorUserId }
+      },
+      select: { id: true }
+    });
+    const staffIds = staff.map(s => s.id);
+    if (staffIds.length === 0) return;
+
+    await sendPushNotification(staffIds, title, message, type, data);
+  } catch (error) {
+    console.error('sendStaffNotification error:', error.message);
+  }
+};
+
+/**
+ * HotelPro Intelligent Smart Router:
+ * - Admin Performs Action -> Notify Staff
+ * - Staff Performs Action -> Notify Admin
+ */
+const sendSmartNotification = async (tenantId, actorUserId, actorRole, title, message, type, data = {}) => {
+  if (actorRole === 'TENANT_ADMIN') {
+    await sendStaffNotification(tenantId, actorUserId, title, message, type, data);
+  } else if (actorRole === 'STAFF') {
+    await sendAdminNotification(tenantId, actorUserId, title, message, type, data);
+  }
+};
+
 module.exports = {
   sendPushNotification,
   sendTenantBulkNotification,
-  sendTenantAdminNotification
+  sendTenantAdminNotification,
+  sendAdminNotification,
+  sendStaffNotification,
+  sendSmartNotification
 };
