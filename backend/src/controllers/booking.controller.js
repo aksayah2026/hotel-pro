@@ -36,7 +36,7 @@ const computeFinance = (booking) => {
     discount: parseFloat(booking.discount || 0),
     extraTotal,
     paidAmount: totalPaid,
-    pendingAmount: totalAmount - totalPaid
+    pendingAmount: Math.max(0, totalAmount - totalPaid)
   };
 };
 
@@ -149,6 +149,24 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Customer name and mobile are required' });
     }
 
+    // Comprehensive input constraints
+    const customerName = customer.name.trim();
+    if (!customerName || !/^[a-zA-Z\s]+$/.test(customerName)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid customer name.' });
+    }
+
+    const customerMobile = customer.mobile.replace(/\D/g, '');
+    if (customerMobile.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Mobile number must be exactly 10 digits.' });
+    }
+
+    if (customer.email && customer.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customer.email.trim())) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+      }
+    }
+
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
     if (checkIn >= checkOut) {
@@ -165,15 +183,13 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'One or more rooms not found or unauthorized' });
     }
 
-    // Prevent Check-In to Cleaning rooms
-    if (doCheckIn) {
-      const cleaningRooms = rooms.filter(r => r.status === 'CLEANING');
-      if (cleaningRooms.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot check in. Room ${cleaningRooms.map(r => r.roomNumber).join(', ')} is currently undergoing cleaning.`
-        });
-      }
+    // Prevent Booking/Check-In if any room is currently undergoing cleaning
+    const cleaningRooms = rooms.filter(r => r.status === 'CLEANING');
+    if (cleaningRooms.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected room is currently under cleaning and unavailable for booking. Please choose another room.'
+      });
     }
 
     // Check double-booking
@@ -209,7 +225,7 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Paid amount cannot be negative' });
     }
 
-    const pendAmt = totalAmt - paidAmt;
+    const pendAmt = Math.max(0, totalAmt - paidAmt);
     let payStatus = 'PENDING';
     if (paidAmt === 0) payStatus = 'PENDING';
     else if (paidAmt >= totalAmt) payStatus = 'PAID';
@@ -583,6 +599,11 @@ const cancelBooking = async (req, res) => {
 // POST /api/bookings/aadhaar/upload
 const uploadAadhaar = async (req, res) => {
   try {
+    // Temporary debug logging as requested
+    console.log('=== Aadhaar Upload Debug ===');
+    console.log('req.file:', req.file);
+    console.log('req.body:', req.body);
+
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
@@ -642,7 +663,7 @@ const updateExtraCharges = async (req, res) => {
         data: {
           totalAmount: finalTotal,
           paidAmount: totalPaid,
-          pendingAmount: finalTotal - totalPaid,
+          pendingAmount: Math.max(0, finalTotal - totalPaid),
           paymentStatus,
         },
         include: {
@@ -698,7 +719,7 @@ const addExtraCharge = async (req, res) => {
         where: { id },
         data: { 
           totalAmount: newTotal, 
-          pendingAmount: newTotal - totalPaid,
+          pendingAmount: Math.max(0, newTotal - totalPaid),
           paymentStatus 
         }
       });

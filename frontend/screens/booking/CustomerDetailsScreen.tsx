@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert,
   StatusBar, Image,
@@ -13,7 +13,7 @@ import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { bookingService } from '../../services/bookingService';
-import { Room } from '../../services/roomService';
+import { roomService, Room } from '../../services/roomService';
 import { StepIndicator } from '../../components/StepIndicator';
 import { formatDisplayDate } from '../../utils/date';
 
@@ -35,6 +35,7 @@ export default function CustomerDetailsScreen() {
   const [aadhaarUrl,      setAadhaarUrl]      = useState<string | null>(null);
   const [uploadingAadhaar, setUploadingAadhaar] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [validating, setValidating] = useState(false);
 
   if (!rooms || !checkIn || !checkOut || !nights) {
     return (
@@ -53,6 +54,38 @@ export default function CustomerDetailsScreen() {
   }
 
   const set = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }));
+
+  // Real-time validation while typing
+  useEffect(() => {
+    const e: Record<string, string> = {};
+    
+    if (form.name !== '') {
+      const trimmed = form.name.trim();
+      if (!trimmed || !/^[a-zA-Z\s]+$/.test(trimmed)) {
+        e.name = 'Please enter a valid customer name.';
+      }
+    }
+
+    if (form.mobile !== '') {
+      if (!/^\d+$/.test(form.mobile)) {
+        e.mobile = 'Mobile must accept numbers only.';
+      } else if (form.mobile.length !== 10) {
+        e.mobile = 'Mobile number must be exactly 10 digits.';
+      }
+    }
+
+    if (form.email !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        e.email = 'Please enter a valid email address.';
+      }
+    }
+
+    setErrors(prev => {
+      // Preserve the uploaded Aadhaar error state if it exists
+      return { ...e, aadhaar: prev.aadhaar };
+    });
+  }, [form.name, form.mobile, form.email]);
 
   const pickAadhaar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -107,30 +140,69 @@ export default function CustomerDetailsScreen() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = 'Customer name is required';
-    if (!form.mobile || form.mobile.length < 10) e.mobile = 'Enter a valid 10-digit mobile number';
-    if (!aadhaarUrl) e.aadhaar = 'Please upload Aadhaar card to continue';
+    const trimmedName = form.name.trim();
+    
+    if (!trimmedName || !/^[a-zA-Z\s]+$/.test(trimmedName)) {
+      e.name = 'Please enter a valid customer name.';
+    }
+    
+    if (!form.mobile || form.mobile.length !== 10 || !/^\d+$/.test(form.mobile)) {
+      e.mobile = 'Mobile number must be exactly 10 digits.';
+    }
+    
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = 'Please enter a valid email address.';
+    }
+    
+    if (!aadhaarUrl) {
+      e.aadhaar = 'Please upload Aadhaar card to continue';
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validate()) {
       if (!aadhaarUrl) {
         Alert.alert('Validation Error', 'Please upload Aadhaar card to continue');
       }
       return;
     }
-    navigation.navigate('EnterAmount', {
-      rooms, checkIn, checkOut, nights,
-      customer: { 
-        name: form.name, 
-        mobile: form.mobile, 
-        email: form.email, 
-        address: form.address, 
-        aadhaarImage: aadhaarUrl
-      },
-    });
+
+    setValidating(true);
+    try {
+      const res = await roomService.getAvailable(checkIn, checkOut);
+      const fresh = res.data.data;
+      
+      const unavailable = rooms.filter((r: any) => !fresh.some((f: any) => f.id === r.id));
+      if (unavailable.length > 0) {
+        Alert.alert(
+          'Room Unavailable',
+          'Selected room is currently under cleaning and unavailable for booking. Please choose another room.',
+          [{ 
+            text: 'Choose Another', 
+            onPress: () => navigation.navigate('AvailableRooms')
+          }]
+        );
+        return;
+      }
+
+      navigation.navigate('EnterAmount', {
+        rooms, checkIn, checkOut, nights,
+        customer: { 
+          name: form.name.trim(), 
+          mobile: form.mobile.trim(), 
+          email: form.email.trim() || undefined, 
+          address: form.address.trim() || undefined, 
+          aadhaarImage: aadhaarUrl
+        },
+      });
+    } catch {
+      Alert.alert('Verification Failed', 'Failed to verify room availability. Please try again.');
+    } finally {
+      setValidating(false);
+    }
   };
 
   const formatDisplay = (d: string) => formatDisplayDate(d);
@@ -177,7 +249,7 @@ export default function CustomerDetailsScreen() {
             label="Full Name *"
             placeholder="Customer's full name"
             value={form.name}
-            onChangeText={(v) => set('name', v)}
+            onChangeText={(v) => set('name', v.replace(/[^a-zA-Z\s]/g, ''))}
             error={errors.name}
             leftIcon={<User size={18} color={colors.textMuted} />}
           />
@@ -185,7 +257,7 @@ export default function CustomerDetailsScreen() {
             label="Mobile Number *"
             placeholder="10-digit mobile number"
             value={form.mobile}
-            onChangeText={(v) => set('mobile', v)}
+            onChangeText={(v) => set('mobile', v.replace(/[^\d]/g, ''))}
             keyboardType="phone-pad"
             maxLength={10}
             error={errors.mobile}
@@ -286,7 +358,8 @@ export default function CustomerDetailsScreen() {
           label="Continue to Enter Amount"
           onPress={handleNext}
           fullWidth size="lg"
-          disabled={uploadingAadhaar}
+          loading={validating}
+          disabled={uploadingAadhaar || validating}
           icon={<ChevronRight size={20} color={colors.textOnPrimary} />}
         />
       </View>

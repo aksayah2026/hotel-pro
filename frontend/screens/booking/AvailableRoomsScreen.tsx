@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import { BedDouble, ChevronRight, CheckCircle } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { roomService, Room, Amenity } from '../../services/roomService';
@@ -28,19 +28,53 @@ export default function AvailableRoomsScreen() {
   const [loading, setLoading]     = useState(true);
   const [selected, setSelected]   = useState<Room[]>([]);
 
+  const isFocused = useIsFocused();
+  const [validating, setValidating] = useState(false);
+
+  const fetchRooms = async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    try {
+      const res = await roomService.getAvailable(checkIn, checkOut);
+      setRooms(res.data.data);
+    } catch {
+      Alert.alert('Error', 'Failed to fetch available rooms');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await roomService.getAvailable(checkIn, checkOut);
-        setRooms(res.data.data);
-      } catch {
-        Alert.alert('Error', 'Failed to fetch available rooms');
-      } finally {
-        setLoading(false);
+    if (isFocused && checkIn && checkOut) {
+      fetchRooms(rooms.length === 0); // Show loading spinner only on first load
+    }
+  }, [isFocused, checkIn, checkOut]);
+
+  const handleContinue = async () => {
+    setValidating(true);
+    try {
+      const res = await roomService.getAvailable(checkIn, checkOut);
+      const fresh = res.data.data;
+      
+      const unavailable = selected.filter(s => !fresh.some(f => f.id === s.id));
+      if (unavailable.length > 0) {
+        setRooms(fresh);
+        // Deselect rooms that are no longer available
+        setSelected(prev => prev.filter(p => fresh.some(f => f.id === p.id)));
+        
+        Alert.alert(
+          'Room Unavailable',
+          'Selected room is currently under cleaning and unavailable for booking. Please choose another room.'
+        );
+        return;
       }
-    };
-    fetch();
-  }, [checkIn, checkOut]);
+      
+      navigation.navigate('CustomerDetails', { rooms: selected, checkIn, checkOut, nights });
+    } catch {
+      Alert.alert('Verification Failed', 'Failed to verify room availability. Please try again.');
+    } finally {
+      setValidating(false);
+    }
+  };
 
   if (!checkIn || !checkOut || !nights) {
     return (
@@ -187,7 +221,8 @@ export default function AvailableRoomsScreen() {
           </View>
           <Button
             label={`Continue with ${selected.length} Room${selected.length > 1 ? 's' : ''}`}
-            onPress={() => navigation.navigate('CustomerDetails', { rooms: selected, checkIn, checkOut, nights })}
+            onPress={handleContinue}
+            loading={validating}
             fullWidth size="lg"
             icon={<ChevronRight size={20} color={colors.textOnPrimary} />}
           />

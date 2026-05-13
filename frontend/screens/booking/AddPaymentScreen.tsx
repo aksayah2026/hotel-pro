@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, StatusBar, Alert, TouchableOpacity,
 } from 'react-native';
@@ -37,6 +37,7 @@ export default function AddPaymentScreen() {
   const [notes,     setNotes]     = useState('');
   const [loading,   setLoading]   = useState(false);
   const [errors,    setErrors]    = useState<Record<string, string>>({});
+  const isSubmitting = useRef(false);
 
   const bookingId = route?.params?.bookingId;
 
@@ -58,6 +59,35 @@ export default function AddPaymentScreen() {
       setInitLoading(false);
     }
   }, [bookingId]);
+
+  // 1. Safe financial computations (before early returns to respect Rules of Hooks)
+  const totalPaid = booking?.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) ?? 0;
+  const remaining = booking ? (Number(booking.totalAmount) - totalPaid) : 0;
+
+  // 2. Real-time interactive validation while typing
+  useEffect(() => {
+    if (!booking) return;
+    const e: Record<string, string> = {};
+    if (amount !== '') {
+      const val = Number(amount);
+      if (isNaN(val) || val <= 0) {
+        e.amount = 'Enter a valid payment amount';
+      } else if (val > remaining) {
+        e.amount = `Payment amount cannot exceed remaining due: ₹${remaining.toLocaleString('en-IN')}`;
+      }
+    }
+    setErrors(e);
+  }, [amount, remaining, booking]);
+
+  const amountNum = Number(amount);
+  const isAmountInvalid = !amount || isNaN(amountNum) || amountNum <= 0 || amountNum > remaining;
+  const isBtnDisabled = remaining <= 0 || isAmountInvalid;
+
+  const getButtonLabel = () => {
+    if (remaining <= 0) return 'Payment Already Completed';
+    if (amountNum > remaining) return `Overpaid by ₹${(amountNum - remaining).toLocaleString('en-IN')}`;
+    return `Confirm Payment · ₹${(parseFloat(amount) || 0).toLocaleString('en-IN')}`;
+  };
 
   if (!route?.params?.bookingId) {
     return (
@@ -88,23 +118,31 @@ export default function AddPaymentScreen() {
     </SafeAreaView>
   );
 
-  const totalPaid = booking.payments?.reduce((s, p) => s + Number(p.amount), 0) ?? 0;
-  const remaining = Number(booking.totalAmount) - totalPaid;
+
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
-      e.amount = 'Enter a valid payment amount';
-    if (remaining > 0 && Number(amount) > remaining)
-      e.amount = `Amount cannot exceed ₹${remaining.toLocaleString('en-IN')} (remaining)`;
-    if ((mode === 'UPI' || mode === 'CARD') && !reference.trim())
-      e.reference = 'Transaction reference is required for UPI/Card payments';
+    if (remaining <= 0) {
+      e.amount = 'Payment already completed. Additional payments are not allowed.';
+    } else {
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
+        e.amount = 'Enter a valid payment amount';
+      if (Number(amount) > remaining)
+        e.amount = `Amount cannot exceed ₹${remaining.toLocaleString('en-IN')} (remaining)`;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async () => {
+    if (remaining <= 0) {
+      Alert.alert('Payment Completed', 'This booking is already fully paid.');
+      return;
+    }
+    if (isSubmitting.current) return; // Strict guard against rapid taps
     if (!validate()) return;
+    
+    isSubmitting.current = true;
     setLoading(true);
     try {
       await paymentService.add({
@@ -121,6 +159,7 @@ export default function AddPaymentScreen() {
       Alert.alert('Error', err?.response?.data?.message ?? 'Payment failed');
     } finally {
       setLoading(false);
+      isSubmitting.current = false;
     }
   };
 
@@ -167,23 +206,26 @@ export default function AddPaymentScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {PAYMENT_MODES.map(({ key, label }) => {
               const active = mode === key;
+              const isDisabled = remaining <= 0;
               return (
                 <TouchableOpacity
                   key={key}
-                  onPress={() => setMode(key)}
+                  onPress={() => !isDisabled && setMode(key)}
+                  disabled={isDisabled}
                   style={{
                     flex: 1, alignItems: 'center', paddingVertical: spacing.md,
                     borderRadius: radius.md, borderWidth: 2,
-                    borderColor: active ? colors.primary : colors.border,
-                    backgroundColor: active ? colors.primaryMuted : colors.surface,
+                    borderColor: isDisabled ? colors.border : (active ? colors.primary : colors.border),
+                    backgroundColor: isDisabled ? colors.background : (active ? colors.primaryMuted : colors.surface),
                     gap: spacing.xs,
+                    opacity: isDisabled ? 0.6 : 1,
                   }}>
-                  <View style={{ opacity: active ? 1 : 0.5 }}>
+                  <View style={{ opacity: active && !isDisabled ? 1 : 0.5 }}>
                     {modeIcons[key]}
                   </View>
                   <Text style={{
                     fontSize: fontSize.sm, fontWeight: fontWeight.bold as any,
-                    color: active ? colors.primary : colors.textSecondary,
+                    color: isDisabled ? colors.textMuted : (active ? colors.primary : colors.textSecondary),
                   }}>
                     {label}
                   </Text>
@@ -197,19 +239,23 @@ export default function AddPaymentScreen() {
         <Card>
           <Input
             label="Amount (₹) *"
-            placeholder={`Max ₹${remaining.toLocaleString('en-IN')}`}
+            placeholder={remaining > 0 ? `Max ₹${remaining.toLocaleString('en-IN')}` : 'Fully Paid'}
             value={amount}
             onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
             keyboardType="decimal-pad"
             error={errors.amount}
+            editable={remaining > 0}
+            containerStyle={remaining <= 0 ? { opacity: 0.6 } : {}}
           />
           {(mode === 'UPI' || mode === 'CARD') && (
             <Input
-              label={`${mode === 'UPI' ? 'UPI' : 'Card'} Transaction Reference *`}
+              label={`${mode === 'UPI' ? 'UPI' : 'Card'} Transaction Reference (Optional)`}
               placeholder={mode === 'UPI' ? 'UPI transaction ID / UTR' : 'Last 4 digits or auth code'}
               value={reference}
               onChangeText={setReference}
               error={errors.reference}
+              editable={remaining > 0}
+              containerStyle={remaining <= 0 ? { opacity: 0.6 } : {}}
             />
           )}
           <Input
@@ -219,14 +265,19 @@ export default function AddPaymentScreen() {
             onChangeText={setNotes}
             multiline
             numberOfLines={2}
+            editable={remaining > 0}
+            containerStyle={remaining <= 0 ? { opacity: 0.6 } : {}}
           />
         </Card>
 
         <Button
-          label={`Confirm Payment · ₹${(parseFloat(amount) || 0).toLocaleString('en-IN')}`}
+          label={getButtonLabel()}
           onPress={handleSubmit}
           loading={loading}
+          disabled={isBtnDisabled}
           fullWidth size="lg"
+          style={isBtnDisabled ? { backgroundColor: colors.border, borderColor: colors.border, opacity: 0.6 } : {}}
+          textStyle={isBtnDisabled ? { color: colors.textMuted } : {}}
         />
         <View style={{ height: spacing.xl }} />
       </ScrollView>

@@ -123,10 +123,10 @@ export default function CheckOutScreen() {
             setLoading(true);
             try {
               await bookingService.checkOut(booking.id, {
-                notes: notes || undefined,
+                notes: notes.trim() || undefined,
                 collectAmount: collectVal > 0 ? collectVal : undefined,
                 paymentMode: collectVal > 0 ? paymentMode : undefined,
-                reference: collectVal > 0 ? reference || undefined : undefined
+                reference: collectVal > 0 ? reference.trim() || undefined : undefined
               });
 
               Alert.alert('✅ Checked Out!', 'Guest has been successfully checked out. Room is now set to Cleaning.', [
@@ -217,7 +217,7 @@ export default function CheckOutScreen() {
               label="Amount to Collect (₹)"
               placeholder="e.g. 500"
               value={collectAmountStr}
-              onChangeText={setCollectAmountStr}
+              onChangeText={(v) => setCollectAmountStr(v.replace(/[^0-9.]/g, ''))}
               keyboardType="decimal-pad"
             />
             

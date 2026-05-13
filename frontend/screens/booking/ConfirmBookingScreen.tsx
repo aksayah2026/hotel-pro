@@ -84,7 +84,7 @@ export default function ConfirmBookingScreen() {
         paymentType,
         advanceAmount: paymentType === 'ADVANCE' ? parseFloat(advanceAmount || '0') : totalAmount,
         paymentMode,
-        paymentReference,
+        paymentReference: paymentReference.trim() || undefined,
       };
       const res = await bookingService.create(payload);
       const booking = res.data.data;
@@ -289,7 +289,7 @@ export default function ConfirmBookingScreen() {
               placeholder="Enter amount"
               keyboardType="numeric"
               value={advanceAmount}
-              onChangeText={setAdvanceAmount}
+              onChangeText={(v) => setAdvanceAmount(v.replace(/[^0-9.]/g, ''))}
               prefix={<Text style={{ color: colors.textMuted }}>₹</Text>}
             />
           )}

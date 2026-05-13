@@ -157,13 +157,15 @@ export default function BookingDetailScreen() {
   
   const handleAddExtraCharge = async () => {
     const amount = parseFloat(extraAmount);
-    if (!extraLabel || isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid description and an amount greater than zero.');
+    const cleanLabel = extraLabel.trim();
+    
+    if (!cleanLabel || isNaN(amount) || amount <= 0) {
+      Alert.alert('Amount field accepts numbers only.', 'Please enter a valid description and a numeric amount greater than zero.');
       return;
     }
     setActionLoading(true);
     try {
-      await bookingService.addExtraCharge(bookingId, extraLabel, amount);
+      await bookingService.addExtraCharge(bookingId, cleanLabel, amount);
       
       // Fetch updated booking to show new total in success message
       const res = await bookingService.getById(bookingId);
@@ -447,16 +449,20 @@ export default function BookingDetailScreen() {
           )}
 
           {/* 2. Add Payment (Applicable to both BOOKED and CHECKED_IN - Primary) */}
-          {remaining > 0 && (
-            <Button
-              label={`Add Payment (₹${remaining.toLocaleString('en-IN')} due)`}
-              variant="primary"
-              onPress={() => navigation.navigate('AddPayment', { bookingId: booking.id })}
-              fullWidth
-              icon={<CreditCard size={18} color={colors.textOnPrimary} />}
-              style={{ opacity: 0.9 }}
-            />
-          )}
+          <Button
+            label={remaining > 0 ? `Add Payment (₹${remaining.toLocaleString('en-IN')} due)` : 'Fully Paid'}
+            variant={remaining > 0 ? 'primary' : 'secondary'}
+            onPress={() => navigation.navigate('AddPayment', { bookingId: booking.id })}
+            fullWidth
+            disabled={remaining <= 0}
+            icon={<CreditCard size={18} color={remaining > 0 ? colors.textOnPrimary : colors.textMuted} />}
+            style={{ 
+              opacity: remaining > 0 ? 0.9 : 0.6,
+              backgroundColor: remaining > 0 ? colors.primary : colors.border,
+              borderColor: remaining > 0 ? colors.primary : colors.border,
+            }}
+            textStyle={remaining > 0 ? {} : { color: colors.textMuted }}
+          />
 
           {/* 3. Check-Out (CHECKED_IN only - Strongest CTA) */}
           {booking.status === 'CHECKED_IN' && (
@@ -522,7 +528,7 @@ export default function BookingDetailScreen() {
                  placeholder="Enter amount"
                  keyboardType="numeric"
                  value={extraAmount}
-                 onChangeText={setExtraAmount}
+                 onChangeText={(v) => setExtraAmount(v.replace(/[^0-9.]/g, ''))}
                />
 
                <View style={{ gap: spacing.md, marginTop: spacing.md }}>

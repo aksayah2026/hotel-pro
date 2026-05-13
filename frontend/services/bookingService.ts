@@ -95,9 +95,24 @@ export const bookingService = {
 
   uploadAadhaar: async (uri: string) => {
     const formData = new FormData();
-    const filename = uri.split('/').pop() || 'aadhaar.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    
+    // 1. Extract filename and sanitize from query params
+    const cleanUri = uri.split('?')[0];
+    let filename = cleanUri.split('/').pop() || 'aadhaar.jpg';
+    
+    // 2. Dynamically extract extension and detect type
+    const extMatch = /\.(\w+)$/.exec(filename);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+    
+    let type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+    if (ext === 'heic' || ext === 'heif') {
+      type = `image/${ext}`;
+    }
+
+    // Double check filename has an extension
+    if (!filename.includes('.')) {
+      filename = `${filename}.${ext}`;
+    }
 
     formData.append('aadhaar', {
       uri,

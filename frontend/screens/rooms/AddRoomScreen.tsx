@@ -79,11 +79,16 @@ export default function AddRoomScreen() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.roomNumber) e.roomNumber = 'Room number required';
+    if (!form.roomNumber.trim()) e.roomNumber = 'Room number required';
     if (!form.type) e.type = 'Room type required';
-    if (!form.floor || isNaN(Number(form.floor))) e.floor = 'Valid floor required';
-    if (!form.baseTariff || isNaN(Number(form.baseTariff)) || Number(form.baseTariff) <= 0) {
-      e.baseTariff = 'Valid nightly tariff required';
+    
+    if (!form.floor || isNaN(Number(form.floor))) {
+      e.floor = 'Valid floor required';
+    }
+    
+    const tariffVal = Number(form.baseTariff);
+    if (!form.baseTariff || isNaN(tariffVal) || tariffVal <= 0) {
+      e.baseTariff = 'Amount field accepts numbers only.';
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -94,13 +99,13 @@ export default function AddRoomScreen() {
     setLoading(true);
     try {
       const payload = {
-        roomNumber: form.roomNumber,
+        roomNumber: form.roomNumber.trim(),
         type: form.type,
         floor: parseInt(form.floor),
         capacity: parseInt(form.capacity),
         baseTariff: parseFloat(form.baseTariff),
         amenities: selectedAmenities,
-        description: form.description,
+        description: form.description.trim(),
       };
       if (isEdit) {
         await roomService.update(existingRoom!.id, payload);
@@ -140,10 +145,10 @@ export default function AddRoomScreen() {
           <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, marginBottom: spacing.md }}>
             Basic Information
           </Text>
-          <Input label="Room Number" placeholder="e.g. 101" value={form.roomNumber} onChangeText={(v) => set('roomNumber', v)} error={errors.roomNumber} />
-          <Input label="Floor" placeholder="e.g. 1" value={form.floor} onChangeText={(v) => set('floor', v)} keyboardType="numeric" error={errors.floor} />
-          <Input label="Nightly Tariff (₹) *" placeholder="e.g. 1500" value={form.baseTariff} onChangeText={(v) => set('baseTariff', v)} keyboardType="numeric" error={errors.baseTariff} />
-          <Input label="Capacity (guests)" placeholder="e.g. 2" value={form.capacity} onChangeText={(v) => set('capacity', v)} keyboardType="numeric" />
+          <Input label="Room Number" placeholder="e.g. 101" value={form.roomNumber} onChangeText={(v) => set('roomNumber', v.replace(/[^a-zA-Z0-9-]/g, ''))} error={errors.roomNumber} />
+          <Input label="Floor" placeholder="e.g. 1" value={form.floor} onChangeText={(v) => set('floor', v.replace(/[^\d]/g, ''))} keyboardType="numeric" error={errors.floor} />
+          <Input label="Nightly Tariff (₹) *" placeholder="e.g. 1500" value={form.baseTariff} onChangeText={(v) => set('baseTariff', v.replace(/[^0-9.]/g, ''))} keyboardType="numeric" error={errors.baseTariff} />
+          <Input label="Capacity (guests)" placeholder="e.g. 2" value={form.capacity} onChangeText={(v) => set('capacity', v.replace(/[^\d]/g, ''))} keyboardType="numeric" />
           <Input label="Description (optional)" placeholder="Brief room description..." value={form.description} onChangeText={(v) => set('description', v)} multiline numberOfLines={3} />
         </Card>
 

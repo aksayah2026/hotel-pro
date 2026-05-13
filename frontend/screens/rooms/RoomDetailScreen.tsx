@@ -31,18 +31,16 @@ export default function RoomDetailScreen() {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
-    if (room.status === 'OCCUPIED') {
-      fetchActiveBooking();
-    } else {
-      setActiveBooking(null);
-    }
-  }, [room.status]);
+    fetchActiveBooking();
+  }, [room.id, room.status]);
 
   const fetchActiveBooking = async () => {
     try {
       const res = await bookingService.getAll({ roomId: room.id, status: 'CHECKED_IN' });
-      if (res.data.data.length > 0) {
+      if (res.data?.data && res.data.data.length > 0) {
         setActiveBooking(res.data.data[0]);
+      } else {
+        setActiveBooking(null);
       }
     } catch (err) {
       console.log('Failed to fetch active booking', err);
@@ -69,24 +67,27 @@ export default function RoomDetailScreen() {
   const handleStatusChange = async (status: Room['status']) => {
     if (status === room.status) return;
 
-    // Rule: Cannot change OCCUPIED to AVAILABLE without checkout
-    if (room.status === 'OCCUPIED' && status === 'AVAILABLE') {
+    // Rule: Cannot set room to AVAILABLE while a guest is still checked in
+    if (activeBooking && status === 'AVAILABLE') {
       Alert.alert(
         'Action Required',
-        'This room is currently occupied. You must complete the guest checkout process to make it available.',
+        'This room has an active guest checked in. You must complete the guest checkout process to make it available.',
         [
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Go to Checkout', 
-            onPress: () => {
-              if (activeBooking) {
-                navigation.navigate('BookingDetail', { bookingId: activeBooking.id });
-              } else {
-                navigation.navigate('Main', { screen: 'Bookings' });
-              }
-            }
+            onPress: () => navigation.navigate('BookingDetail', { bookingId: activeBooking.id })
           }
         ]
+      );
+      return;
+    }
+
+    // Rule: Prevent selecting OCCUPIED without an active stay
+    if (!activeBooking && status === 'OCCUPIED') {
+      Alert.alert(
+        'Validation Error',
+        'Cannot set room to Occupied without an active checked-in guest.'
       );
       return;
     }
@@ -219,14 +220,18 @@ export default function RoomDetailScreen() {
             <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
               Update Status
             </Text>
-            {room.status === 'OCCUPIED' && (
-              <Badge label="LOCKED" variant="pending" size="sm" />
+            {activeBooking && (
+              <Badge 
+                label={room.status === 'OCCUPIED' ? 'LOCKED' : 'ACTIVE STAY'} 
+                variant={room.status === 'OCCUPIED' ? 'pending' : 'success'} 
+                size="sm" 
+              />
             )}
           </View>
-
-          {room.status === 'OCCUPIED' && (
+ 
+          {activeBooking && (
             <View style={{ 
-              backgroundColor: colors.warningBg + '40', 
+              backgroundColor: room.status === 'OCCUPIED' ? colors.warningBg + '40' : colors.infoBg + '40', 
               padding: spacing.md, 
               borderRadius: radius.md, 
               marginBottom: spacing.md,
@@ -234,29 +239,41 @@ export default function RoomDetailScreen() {
               gap: spacing.sm,
               alignItems: 'center',
               borderWidth: 1,
-              borderColor: colors.warning + '20'
+              borderColor: room.status === 'OCCUPIED' ? colors.warning + '20' : colors.info + '20'
             }}>
-              <AlertTriangle size={18} color={colors.warning} />
+              <AlertTriangle size={18} color={room.status === 'OCCUPIED' ? colors.warning : colors.info} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: fontSize.xs, color: colors.textPrimary, fontWeight: fontWeight.bold as any }}>Room is Occupied</Text>
-                <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>Checkout is required to make this room available.</Text>
+                <Text style={{ fontSize: fontSize.xs, color: colors.textPrimary, fontWeight: fontWeight.bold as any }}>
+                  {room.status === 'OCCUPIED' ? 'Room is Occupied' : 'In-Stay Housekeeping'}
+                </Text>
+                <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>
+                  {room.status === 'OCCUPIED' 
+                    ? 'Active guest checked in. Checkout required to make room available.' 
+                    : 'Room is currently undergoing cleaning during an active guest stay.'}
+                </Text>
               </View>
-              {activeBooking && (
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('BookingDetail', { bookingId: activeBooking.id })}
-                  style={{ backgroundColor: colors.primary, padding: spacing.xs, borderRadius: radius.sm, paddingHorizontal: spacing.sm }}
-                >
-                  <Text style={{ color: colors.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold as any }}>CHECKOUT</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('BookingDetail', { bookingId: activeBooking.id })}
+                style={{ backgroundColor: colors.primary, padding: spacing.xs, borderRadius: radius.sm, paddingHorizontal: spacing.sm }}
+              >
+                <Text style={{ color: colors.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold as any }}>VIEW STAY</Text>
+              </TouchableOpacity>
             </View>
           )}
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {STATUS_OPTIONS.map((s) => {
-              const isDisabled = 
-                (room.status === 'OCCUPIED' && s === 'AVAILABLE') ||
-                (room.status === 'CLEANING' && s === 'OCCUPIED');
+              let isDisabled = false;
+              if (s !== room.status) {
+                if (activeBooking) {
+                  // Case 1: Guest checked in -> Only Cleaning and Occupied allowed
+                  isDisabled = (s !== 'CLEANING' && s !== 'OCCUPIED');
+                } else {
+                  // Case 2: Guest checked out -> Occupied is NOT allowed
+                  isDisabled = (s === 'OCCUPIED');
+                }
+              }
+              
               return (
                 <TouchableOpacity
                   key={s}

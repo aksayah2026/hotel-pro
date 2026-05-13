@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StatusBar,
+  View, Text, ScrollView, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -11,7 +11,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { StepIndicator } from '../../components/StepIndicator';
-import { Room } from '../../services/roomService';
+import { roomService, Room } from '../../services/roomService';
 import { formatDisplayDate } from '../../utils/date';
 
 interface Customer {
@@ -33,6 +33,7 @@ export default function EnterAmountScreen() {
 
   const [discountStr, setDiscountStr] = useState('');
   const [discountError, setDiscountError] = useState('');
+  const [validating, setValidating] = useState(false);
 
   // Auto-calculation
   const roomSubtotal = rooms.reduce((sum: number, r: Room) => sum + (Number(r.baseTariff) || 0), 0) * nights;
@@ -54,14 +55,38 @@ export default function EnterAmountScreen() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (discountError || finalAmount < 0) return;
-    navigation.navigate('ConfirmBooking', {
-      rooms, checkIn, checkOut, nights, customer,
-      roomAmount: roomSubtotal,
-      discount: discountVal,
-      totalAmount: Math.max(0, finalAmount),
-    });
+    
+    setValidating(true);
+    try {
+      const res = await roomService.getAvailable(checkIn, checkOut);
+      const fresh = res.data.data;
+      
+      const unavailable = rooms.filter((r: any) => !fresh.some((f: any) => f.id === r.id));
+      if (unavailable.length > 0) {
+        Alert.alert(
+          'Room Unavailable',
+          'Selected room is currently under cleaning and unavailable for booking. Please choose another room.',
+          [{ 
+            text: 'Choose Another', 
+            onPress: () => navigation.navigate('AvailableRooms')
+          }]
+        );
+        return;
+      }
+
+      navigation.navigate('ConfirmBooking', {
+        rooms, checkIn, checkOut, nights, customer,
+        roomAmount: roomSubtotal,
+        discount: discountVal,
+        totalAmount: Math.max(0, finalAmount),
+      });
+    } catch {
+      Alert.alert('Verification Failed', 'Failed to verify room availability. Please try again.');
+    } finally {
+      setValidating(false);
+    }
   };
 
   const isInvalid = !!discountError || (discountStr !== '' && isNaN(discountVal));
@@ -140,8 +165,9 @@ export default function EnterAmountScreen() {
           label="Continue to Confirmation"
           onPress={handleNext}
           fullWidth size="lg"
-          disabled={isInvalid}
-          style={{ opacity: isInvalid ? 0.5 : 1 }}
+          loading={validating}
+          disabled={isInvalid || validating}
+          style={{ opacity: (isInvalid || validating) ? 0.5 : 1 }}
           icon={<ChevronRight size={20} color={colors.textOnPrimary} />}
         />
       </View>

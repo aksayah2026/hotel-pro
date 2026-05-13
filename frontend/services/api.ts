@@ -3,16 +3,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 
 // 🔧 UPDATE THIS to your machine's IP when testing on device
-// export const BASE_URL = 'http://192.168.0.102:5000/api';
+export const BASE_URL = 'http://192.168.0.114:5000/api';
 
 // Live hosted
-export const BASE_URL = 'https://api.hotelpro.aksayah.com/api';
+// export const BASE_URL = 'https://api.hotelpro.aksayah.com/api';
 
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 // Attach token to every request
