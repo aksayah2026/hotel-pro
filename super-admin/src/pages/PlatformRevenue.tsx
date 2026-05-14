@@ -178,7 +178,7 @@ export default function PlatformRevenue() {
                   key: 'businessName',
                   width: '50%',
                   render: (t: string, record: any) => {
-                    const isDeleted = !!record.isDeleted;
+                    const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
                     const displayName = t || record.name || record.businessName || 'Deleted Tenant';
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
@@ -189,7 +189,21 @@ export default function PlatformRevenue() {
                         }}>
                           {displayName}
                         </Text>
-                        {isDeleted && <Tag color="error" style={{ fontSize: '10px', flexShrink: 0 }}>Deleted</Tag>}
+                        {isDeleted && (
+                          <span style={{ 
+                            backgroundColor: '#fff1f0', 
+                            color: '#cf1322', 
+                            border: '1px solid #ffa39e', 
+                            padding: '0 8px', 
+                            borderRadius: '10px', 
+                            fontSize: '10px',
+                            fontWeight: '500',
+                            flexShrink: 0,
+                            lineHeight: '1.6'
+                          }}>
+                            Deleted
+                          </span>
+                        )}
                       </div>
                     );
                   }

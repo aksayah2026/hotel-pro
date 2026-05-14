@@ -321,7 +321,7 @@ export default function Dashboard() {
                    key: 'businessName',
                    width: '65%',
                    render: (t, record: any) => {
-                     const isDeleted = !!record.isDeleted;
+                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
                      const displayName = t || record.name || record.businessName || 'Deleted Tenant';
                      return (
                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
@@ -333,7 +333,21 @@ export default function Dashboard() {
                          }}>
                            {displayName}
                          </Text>
-                         {isDeleted && <Tag color="error" style={{ fontSize: '10px', flexShrink: 0 }}>Deleted</Tag>}
+                         {isDeleted && (
+                           <span style={{ 
+                             backgroundColor: '#fff1f0', 
+                             color: '#cf1322', 
+                             border: '1px solid #ffa39e', 
+                             padding: '0 8px', 
+                             borderRadius: '10px', 
+                             fontSize: '10px',
+                             fontWeight: '500',
+                             flexShrink: 0,
+                             lineHeight: '1.6'
+                           }}>
+                             Deleted
+                           </span>
+                         )}
                        </div>
                      );
                    }
