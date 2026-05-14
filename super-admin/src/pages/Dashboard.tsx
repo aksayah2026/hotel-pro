@@ -16,7 +16,8 @@ import {
   WarningOutlined,
   FilterOutlined,
   DownloadOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 const RevenueChart = React.lazy(() => import('../components/RevenueChart'));
 const PlanChart = React.lazy(() => import('../components/PlanChart'));
@@ -320,41 +321,36 @@ export default function Dashboard() {
                size="middle"
                loading={loading}
                locale={{ emptyText: 'No revenue records found' }}
+               rowClassName={(record: any) => {
+                 const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
+                 return isDeleted ? 'archived-row' : '';
+               }}
                columns={[
                  {
                    title: 'Hotel Name',
                    dataIndex: 'businessName',
                    key: 'businessName',
-                   width: '65%',
+                   width: '45%',
                    render: (t, record: any) => {
                      const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
                      const displayName = t || record.name || record.businessName || 'Deleted Tenant';
                      return (
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                         <Text strong type={isDeleted ? 'secondary' : undefined} style={{ 
-                           whiteSpace: 'nowrap', 
-                           overflow: 'hidden', 
-                           textOverflow: 'ellipsis',
-                           maxWidth: 'calc(100% - 70px)'
-                         }}>
+                       <Space align="center">
+                         {isDeleted && <InboxOutlined style={{ color: '#8c8c8c' }} />}
+                         <Text 
+                           strong={!isDeleted} 
+                           delete={isDeleted} 
+                           type={isDeleted ? 'secondary' : undefined}
+                           style={{ 
+                             whiteSpace: 'nowrap', 
+                             overflow: 'hidden', 
+                             textOverflow: 'ellipsis',
+                             maxWidth: 300
+                           }}
+                         >
                            {displayName}
                          </Text>
-                         {isDeleted && (
-                           <span style={{ 
-                             backgroundColor: '#fff1f0', 
-                             color: '#cf1322', 
-                             border: '1px solid #ffa39e', 
-                             padding: '0 8px', 
-                             borderRadius: '10px', 
-                             fontSize: '10px',
-                             fontWeight: '500',
-                             flexShrink: 0,
-                             lineHeight: '1.6'
-                           }}>
-                             Deleted
-                           </span>
-                         )}
-                       </div>
+                       </Space>
                      );
                    }
                  },
@@ -364,14 +360,32 @@ export default function Dashboard() {
                    key: 'revenue',
                    width: '35%',
                    render: (a, record: any) => {
-                     const isDeleted = !!record.isDeleted;
+                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
                      return (
-                       <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a', whiteSpace: 'nowrap' }}>
+                       <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a', whiteSpace: 'nowrap', fontWeight: isDeleted ? 400 : 600 }}>
                          ₹{Number(a || 0).toLocaleString('en-IN')}
                        </Text>
                      );
                    }
                  },
+                 {
+                   title: 'Status',
+                   key: 'status',
+                   width: '20%',
+                   render: (_, record: any) => {
+                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
+                     return (
+                       <Tag 
+                         bordered={false}
+                         color={isDeleted ? 'default' : 'success'}
+                         icon={isDeleted ? <ClockCircleOutlined /> : <CheckCircleOutlined />}
+                         style={{ borderRadius: '4px', textTransform: 'uppercase', fontSize: '10px', fontWeight: 700 }}
+                       >
+                         {isDeleted ? 'Archived' : 'Active'}
+                       </Tag>
+                     );
+                   }
+                 }
                ]}
              />
           </Card>
@@ -380,4 +394,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

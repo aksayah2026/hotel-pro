@@ -120,4 +120,17 @@ body {
   background-color: #fff1d6 !important;
 }
 
+.archived-row {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.archived-row:hover {
+  opacity: 0.9;
+}
+
+.archived-row td {
+  background-color: #fafafa !important;
+}
+
 
