@@ -307,46 +307,53 @@ export default function Dashboard() {
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={24}>
           <Card title="Tenant-wise Revenue Breakdown" variant="borderless" extra={<Text type="secondary">Top 10 Contributors</Text>}>
-            <Table
-              dataSource={data.tenantWise}
-              pagination={false}
-              rowKey="businessName"
-              size="middle"
-              loading={loading}
-              locale={{ emptyText: 'No revenue records found' }}
-              columns={[
-                {
-                  title: 'Hotel Name',
-                  dataIndex: 'businessName',
-                  key: 'businessName',
-                  render: (t, record) => {
-                    const isDeleted = !!record.isDeleted;
-                    const displayName = t || 'Deleted Tenant';
-                    return (
-                      <Space>
-                        <Text strong type={isDeleted ? 'secondary' : undefined}>
-                          {displayName}
-                        </Text>
-                        {isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
-                      </Space>
-                    );
-                  }
-                },
-                {
-                  title: 'Lifetime SaaS Revenue',
-                  dataIndex: 'revenue',
-                  key: 'revenue',
-                  render: (a, record) => {
-                    const isDeleted = !!record.isDeleted;
-                    return (
-                      <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a' }}>
-                        ₹{Number(a || 0).toLocaleString('en-IN')}
-                      </Text>
-                    );
-                  }
-                },
-              ]}
-            />
+             <Table
+               dataSource={data.tenantWise}
+               pagination={false}
+               rowKey={(record: any) => record.id || record.businessName || record.name || Math.random().toString()}
+               size="middle"
+               loading={loading}
+               locale={{ emptyText: 'No revenue records found' }}
+               columns={[
+                 {
+                   title: 'Hotel Name',
+                   dataIndex: 'businessName',
+                   key: 'businessName',
+                   width: '65%',
+                   render: (t, record: any) => {
+                     const isDeleted = !!record.isDeleted;
+                     const displayName = t || record.name || record.businessName || 'Deleted Tenant';
+                     return (
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                         <Text strong type={isDeleted ? 'secondary' : undefined} style={{ 
+                           whiteSpace: 'nowrap', 
+                           overflow: 'hidden', 
+                           textOverflow: 'ellipsis',
+                           maxWidth: 'calc(100% - 70px)'
+                         }}>
+                           {displayName}
+                         </Text>
+                         {isDeleted && <Tag color="error" style={{ fontSize: '10px', flexShrink: 0 }}>Deleted</Tag>}
+                       </div>
+                     );
+                   }
+                 },
+                 {
+                   title: 'Lifetime SaaS Revenue',
+                   dataIndex: 'revenue',
+                   key: 'revenue',
+                   width: '35%',
+                   render: (a, record: any) => {
+                     const isDeleted = !!record.isDeleted;
+                     return (
+                       <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a', whiteSpace: 'nowrap' }}>
+                         ₹{Number(a || 0).toLocaleString('en-IN')}
+                       </Text>
+                     );
+                   }
+                 },
+               ]}
+             />
           </Card>
         </Col>
       </Row>

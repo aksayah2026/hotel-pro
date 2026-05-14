@@ -139,8 +139,11 @@ async function getSuperAdminStatsData(queryParams) {
   const tenantMap = new Map(tenants.map(t => [t.id, { businessName: t.businessName, isDeleted: t.isDeleted }]));
   const tenantRevenue = saasRevenueByTenant.map(item => {
     const mapped = tenantMap.get(item.tenantId);
+    const nameVal = (mapped && mapped.businessName) ? mapped.businessName : 'Deleted Tenant';
     return {
-      businessName: (mapped && mapped.businessName) ? mapped.businessName : 'Deleted Tenant',
+      id: item.tenantId,
+      name: nameVal,
+      businessName: nameVal,
       revenue: item._sum.amount || 0,
       isDeleted: mapped ? mapped.isDeleted : true
     };

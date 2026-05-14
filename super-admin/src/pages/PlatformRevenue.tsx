@@ -170,21 +170,27 @@ export default function PlatformRevenue() {
             <Table
               dataSource={data?.tenantWise}
               loading={loading}
+              rowKey={(record: any) => record.id || record.businessName || record.name || Math.random().toString()}
               columns={[
                 { 
                   title: 'Business Name', 
                   dataIndex: 'businessName', 
                   key: 'businessName',
+                  width: '50%',
                   render: (t: string, record: any) => {
                     const isDeleted = !!record.isDeleted;
-                    const displayName = t || 'Deleted Tenant';
+                    const displayName = t || record.name || record.businessName || 'Deleted Tenant';
                     return (
-                      <Space>
-                        <Text strong type={isDeleted ? 'secondary' : undefined}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                        <Text strong type={isDeleted ? 'secondary' : undefined} style={{ 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis'
+                        }}>
                           {displayName}
                         </Text>
-                        {isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
-                      </Space>
+                        {isDeleted && <Tag color="error" style={{ fontSize: '10px', flexShrink: 0 }}>Deleted</Tag>}
+                      </div>
                     );
                   }
                 },
@@ -192,10 +198,11 @@ export default function PlatformRevenue() {
                   title: 'Platform Contribution',
                   dataIndex: 'revenue',
                   key: 'revenue',
+                  width: '30%',
                   render: (val, record: any) => {
                     const isDeleted = !!record.isDeleted;
                     return (
-                      <Text strong style={{ color: isDeleted ? '#8c8c8c' : undefined }}>
+                      <Text strong style={{ color: isDeleted ? '#8c8c8c' : undefined, whiteSpace: 'nowrap' }}>
                         ₹{val.toLocaleString()}
                       </Text>
                     );
@@ -204,6 +211,7 @@ export default function PlatformRevenue() {
                 {
                   title: 'Status',
                   key: 'status',
+                  width: '20%',
                   render: (_, record: any) => (
                     record.isDeleted 
                       ? <Tag color="default">Deleted</Tag>
