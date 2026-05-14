@@ -26,7 +26,9 @@ import {
   Popconfirm,
   Tooltip,
   Switch,
-  List
+  Flex,
+  Spin,
+  Empty
 } from 'antd';
 import { 
   EyeOutlined, 
@@ -43,7 +45,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { Tabs } from 'antd';
 
-const { TabPane } = Tabs;
+// const { TabPane } = Tabs; // Deprecated in AntD v5
 
 
 
@@ -461,134 +463,151 @@ export default function Tenants() {
         open={viewVisible}
       >
         {selectedTenant && (
-          <Tabs defaultActiveKey="info">
-            <TabPane tab={<span><EyeOutlined /> General Info</span>} key="info">
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Descriptions title="Business Information" bordered column={1}>
-                  <Descriptions.Item label="Business Name">{selectedTenant.businessName}</Descriptions.Item>
-                  <Descriptions.Item label="Owner Name">{selectedTenant.ownerName}</Descriptions.Item>
-                  <Descriptions.Item label="Address">{selectedTenant.address || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="Phone Number">{selectedTenant.phoneNumber || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="Access Level">
-                    <Tag color={selectedTenant.accessLevel === 'FULL' ? 'green' : selectedTenant.accessLevel === 'READ_ONLY' ? 'orange' : 'red'}>
-                      {selectedTenant.accessLevel}
-                    </Tag>
-                  </Descriptions.Item>
-                </Descriptions>
+          <Tabs 
+            defaultActiveKey="info"
+            items={[
+              {
+                key: 'info',
+                label: <span><EyeOutlined /> General Info</span>,
+                children: (
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <Descriptions title="Business Information" bordered column={1}>
+                      <Descriptions.Item label="Business Name">{selectedTenant.businessName}</Descriptions.Item>
+                      <Descriptions.Item label="Owner Name">{selectedTenant.ownerName}</Descriptions.Item>
+                      <Descriptions.Item label="Address">{selectedTenant.address || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Phone Number">{selectedTenant.phoneNumber || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Access Level">
+                        <Tag color={selectedTenant.accessLevel === 'FULL' ? 'green' : selectedTenant.accessLevel === 'READ_ONLY' ? 'orange' : 'red'}>
+                          {selectedTenant.accessLevel}
+                        </Tag>
+                      </Descriptions.Item>
+                    </Descriptions>
 
-                <Descriptions title="Subscription Details" bordered column={1}>
-                  {selectedTenant.subscriptions?.[0] ? (
-                    <>
-                      <Descriptions.Item label="Current Plan">{selectedTenant.subscriptions[0].plan?.name}</Descriptions.Item>
-                      <Descriptions.Item label="Expiry Date">{new Date(selectedTenant.subscriptions[0].endDate).toLocaleDateString()}</Descriptions.Item>
-                    </>
-                  ) : (
-                    <Descriptions.Item label="Status">No Active Subscription</Descriptions.Item>
-                  )}
-                </Descriptions>
-              </Space>
-            </TabPane>
-            
-            <TabPane tab={<span><DollarCircleOutlined /> Payments</span>} key="payments">
-              <Table 
-                dataSource={payments} 
-                loading={historyLoading}
-                rowKey="id"
-                columns={[
-                  { title: 'Date', dataIndex: 'paidAt', render: d => dayjs(d).format('DD MMM YYYY') },
-                  { title: 'Plan', dataIndex: ['plan', 'name'] },
-                  { title: 'Amount', dataIndex: 'amount', render: a => `₹${a}` },
-                  { title: 'Method', dataIndex: 'method' },
-                  { title: 'Invoice', render: (_, r) => r.invoice ? <Tag color="blue">{r.invoice.invoiceNumber}</Tag> : '-' }
-                ]}
-              />
-            </TabPane>
+                    <Descriptions title="Subscription Details" bordered column={1}>
+                      {selectedTenant.subscriptions?.[0] ? (
+                        <>
+                          <Descriptions.Item label="Current Plan">{selectedTenant.subscriptions[0].plan?.name}</Descriptions.Item>
+                          <Descriptions.Item label="Expiry Date">{new Date(selectedTenant.subscriptions[0].endDate).toLocaleDateString()}</Descriptions.Item>
+                        </>
+                      ) : (
+                        <Descriptions.Item label="Status">No Active Subscription</Descriptions.Item>
+                      )}
+                    </Descriptions>
+                  </Space>
+                )
+              },
+              {
+                key: 'payments',
+                label: <span><DollarCircleOutlined /> Payments</span>,
+                children: (
+                  <Table 
+                    dataSource={payments} 
+                    loading={historyLoading}
+                    rowKey="id"
+                    columns={[
+                      { title: 'Date', dataIndex: 'paidAt', render: d => dayjs(d).format('DD MMM YYYY') },
+                      { title: 'Plan', dataIndex: ['plan', 'name'] },
+                      { title: 'Amount', dataIndex: 'amount', render: a => `₹${a}` },
+                      { title: 'Method', dataIndex: 'method' },
+                      { title: 'Invoice', render: (_, r) => r.invoice ? <Tag color="blue">{r.invoice.invoiceNumber}</Tag> : '-' }
+                    ]}
+                  />
+                )
+              },
+              {
+                key: 'logs',
+                label: <span><HistoryOutlined /> Audit Logs</span>,
+                children: (
+                  <Flex vertical gap="middle">
+                    {historyLoading ? (
+                      <div style={{ textAlign: 'center', padding: '40px' }}><Spin /></div>
+                    ) : logs.length > 0 ? (
+                      logs.map(item => {
+                        let details = {};
+                        try {
+                          details = typeof item.details === 'string' ? JSON.parse(item.details) : (item.details || {});
+                        } catch (e) {
+                          console.error("Error parsing details", e);
+                        }
 
-            <TabPane tab={<span><HistoryOutlined /> Audit Logs</span>} key="logs">
-              <List
-                loading={historyLoading}
-                dataSource={logs}
-                renderItem={item => {
-                  let details = {};
-                  try {
-                    details = typeof item.details === 'string' ? JSON.parse(item.details) : (item.details || {});
-                  } catch (e) {
-                    console.error("Error parsing details", e);
-                  }
+                        const formatTitle = (str: string) => {
+                          if (!str) return '';
+                          return str
+                            .toLowerCase()
+                            .split(/[_\s]+/)
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        };
 
-                  const formatTitle = (str: string) => {
-                    if (!str) return '';
-                    return str
-                      .toLowerCase()
-                      .split(/[_\s]+/)
-                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(' ');
-                  };
+                        const formatLabel = (key: string) => {
+                          const labelMap: { [key: string]: string } = {
+                            businessName: 'Business Name',
+                            ownerName: 'Owner',
+                            planId: 'Plan ID',
+                            address: 'Address',
+                            phoneNumber: 'Phone',
+                            status: 'Status',
+                            isActive: 'Active Status',
+                            plan: 'Plan',
+                            amount: 'Amount',
+                            paymentMethod: 'Payment Method',
+                            reason: 'Reason'
+                          };
+                          if (labelMap[key]) return labelMap[key];
+                          const spaced = key
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/[_\s]+/g, ' ')
+                            .trim();
+                          return spaced.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+                        };
 
-                  const formatLabel = (key: string) => {
-                    const labelMap: { [key: string]: string } = {
-                      businessName: 'Business Name',
-                      ownerName: 'Owner',
-                      planId: 'Plan ID',
-                      address: 'Address',
-                      phoneNumber: 'Phone',
-                      status: 'Status',
-                      isActive: 'Active Status',
-                      plan: 'Plan',
-                      amount: 'Amount',
-                      paymentMethod: 'Payment Method',
-                      reason: 'Reason'
-                    };
-                    if (labelMap[key]) return labelMap[key];
-                    const spaced = key
-                      .replace(/([A-Z])/g, ' $1')
-                      .replace(/[_\s]+/g, ' ')
-                      .trim();
-                    return spaced.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-                  };
-
-                  return (
-                    <List.Item style={{ flexDirection: 'column', alignItems: 'flex-start', borderBottom: '1px solid #f5f5f5', padding: '14px 0' }}>
-                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                        <Text strong style={{ fontSize: '15px', color: '#262626', fontWeight: 600 }}>
-                          {formatTitle(item.action)}
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {dayjs(item.createdAt).format('DD MMM, hh:mm A')}
-                        </Text>
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
-                        <div style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
-                          <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>Performed By:</Text>
-                          <Text strong style={{ color: '#595959', fontWeight: 500 }}>{item.user?.name || 'System'}</Text>
-                        </div>
-                        
-                        {Object.entries(details).map(([key, val]) => {
-                          if (val === undefined || val === null) return null;
-                          
-                          let displayVal = String(val);
-                          const label = formatLabel(key);
-                          
-                          // Format numeric currency fields
-                          if (label.toLowerCase().includes('amount') && !displayVal.includes('₹')) {
-                            displayVal = `₹${displayVal}`;
-                          }
-
-                          return (
-                            <div key={key} style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
-                              <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>{label}:</Text>
-                              <Text style={{ color: '#434343', wordBreak: 'break-all' }}>{displayVal}</Text>
+                        return (
+                          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', borderBottom: '1px solid #f5f5f5', padding: '14px 0' }}>
+                            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                              <Text strong style={{ fontSize: '15px', color: '#262626', fontWeight: 600 }}>
+                                {formatTitle(item.action)}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {dayjs(item.createdAt).format('DD MMM, hh:mm A')}
+                              </Text>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </List.Item>
-                  );
-                }}
-              />
-            </TabPane>
-          </Tabs>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
+                              <div style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
+                                <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>Performed By:</Text>
+                                <Text strong style={{ color: '#595959', fontWeight: 500 }}>{item.user?.name || 'System'}</Text>
+                              </div>
+                              
+                              {Object.entries(details).map(([key, val]) => {
+                                if (val === undefined || val === null) return null;
+                                
+                                let displayVal = String(val);
+                                const label = formatLabel(key);
+                                
+                                // Format numeric currency fields
+                                if (label.toLowerCase().includes('amount') && !displayVal.includes('₹')) {
+                                  displayVal = `₹${displayVal}`;
+                                }
+
+                                return (
+                                  <div key={key} style={{ display: 'flex', gap: '8px', fontSize: '13px' }}>
+                                    <Text type="secondary" style={{ minWidth: '120px', display: 'inline-block' }}>{label}:</Text>
+                                    <Text style={{ color: '#434343', wordBreak: 'break-all' }}>{displayVal}</Text>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <Empty description="No logs found" />
+                    )}
+                  </Flex>
+                )
+              }
+            ]}
+          />
         )}
       </Drawer>
       )}

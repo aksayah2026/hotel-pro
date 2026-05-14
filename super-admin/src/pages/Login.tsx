@@ -39,7 +39,11 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
       justifyContent: 'center', 
       background: 'linear-gradient(135deg, #1e1e1e 0%, #121212 100%)' 
     }}>
-      <Card style={{ width: '100%', maxWidth: '400px', padding: '12px' }} bordered={false}>
+      <Card 
+        style={{ width: '100%', maxWidth: '400px' }} 
+        variant="borderless"
+        styles={{ body: { padding: '24px' } }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div style={{ 
                 display: 'inline-flex', 

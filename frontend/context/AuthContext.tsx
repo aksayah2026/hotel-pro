@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { subscriptionStatus: sub, expiryDate: exp, planName: pl, ...u } = res.data.data;
       
       await AsyncStorage.setItem('auth_user', JSON.stringify(u));
-      await AsyncStorage.setItem('auth_subscription', sub);
+      await AsyncStorage.setItem('auth_subscription', sub || '');
       if (exp) await AsyncStorage.setItem('auth_expiry', exp);
       if (pl) await AsyncStorage.setItem('auth_plan', pl);
       if (u.tenant) await AsyncStorage.setItem('auth_tenant', JSON.stringify(u.tenant));

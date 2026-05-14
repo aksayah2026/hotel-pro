@@ -111,18 +111,18 @@ export default function PlatformRevenue() {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Statistic
               title={<span>Total SaaS Revenue (Lifetime) <DollarCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>}
               value={stats.totalRevenue ?? 0}
               precision={2}
               prefix={<Text style={{ color: '#52c41a', marginRight: 4 }}>₹</Text>}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Statistic
               title="Active Subscriptions"
               value={stats.activeTenants ?? 0}
@@ -131,13 +131,13 @@ export default function PlatformRevenue() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Statistic
               title="Avg. Revenue Per User"
               value={stats.totalRevenue / (stats.totalTenants || 1)}
               precision={2}
               prefix="₹"
-              valueStyle={{ color: '#13c2c2' }}
+              styles={{ content: { color: '#13c2c2' } }}
             />
           </Card>
         </Col>
@@ -145,7 +145,7 @@ export default function PlatformRevenue() {
 
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={16}>
-          <Card title={<span><LineChartOutlined /> Revenue Trend ({year})</span>} bordered={false}>
+          <Card title={<span><LineChartOutlined /> Revenue Trend ({year})</span>} variant="borderless">
             <div style={{ height: 350 }}>
               <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
                 {loadCharts && <RevenueChart data={data?.monthlyRevenue || []} />}
@@ -154,7 +154,7 @@ export default function PlatformRevenue() {
           </Card>
         </Col>
         <Col span={8}>
-          <Card title={<span><BarChartOutlined /> Plan Breakdown</span>} bordered={false}>
+          <Card title={<span><BarChartOutlined /> Plan Breakdown</span>} variant="borderless">
             <div style={{ height: 350 }}>
               <Suspense fallback={<div style={{ textAlign: 'center', paddingTop: '40px' }}>Loading chart...</div>}>
                 {loadCharts && <PlanChart data={data?.planWise || []} />}
@@ -166,7 +166,7 @@ export default function PlatformRevenue() {
 
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={24}>
-          <Card title={<span><HistoryOutlined /> Top Contributing Businesses</span>} bordered={false}>
+          <Card title={<span><HistoryOutlined /> Top Contributing Businesses</span>} variant="borderless">
             <Table
               dataSource={data?.tenantWise}
               loading={loading}

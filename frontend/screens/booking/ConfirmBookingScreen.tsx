@@ -290,7 +290,7 @@ export default function ConfirmBookingScreen() {
               keyboardType="numeric"
               value={advanceAmount}
               onChangeText={(v) => setAdvanceAmount(v.replace(/[^0-9.]/g, ''))}
-              prefix={<Text style={{ color: colors.textMuted }}>₹</Text>}
+              leftIcon={<Text style={{ color: colors.textMuted }}>₹</Text>}
             />
           )}
 

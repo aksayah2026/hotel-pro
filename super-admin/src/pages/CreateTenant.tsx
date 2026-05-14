@@ -70,7 +70,7 @@ export default function CreateTenant() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-      <Card bordered={false}>
+      <Card variant="borderless">
         <div style={{ marginBottom: '24px' }}>
           <Title level={2}><UserAddOutlined /> Register New Hotel</Title>
           <Paragraph type="secondary">Onboard a new hotel onto the HotelPro platform.</Paragraph>

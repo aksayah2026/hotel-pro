@@ -3,7 +3,7 @@ import api from '../api';
 
 import {
   Card, Row, Col, Statistic, Typography, Table, Tag, message,
-  List, Avatar, Space, Select, DatePicker, Button, Tooltip
+  Avatar, Space, Select, DatePicker, Button, Tooltip, Flex, Empty, Spin
 } from 'antd';
 
 import {
@@ -209,35 +209,35 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Tooltip title="Total subscription payments received from all hotels">
               <Statistic
                 title={<span>SaaS Revenue <DollarCircleOutlined style={{ fontSize: '12px', marginLeft: '4px' }} /></span>}
                 value={data.stats.totalRevenue ?? 0}
                 precision={0}
                 prefix={<Text style={{ color: '#52c41a', marginRight: 4 }}>₹</Text>}
-                valueStyle={{ color: '#52c41a' }}
+                styles={{ content: { color: '#52c41a' } }}
               />
             </Tooltip>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Statistic
               title="Active Licenses"
               value={data.stats.activeTenants ?? 0}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
               prefix={<CheckCircleOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="stat-card" loading={loading}>
+          <Card variant="borderless" className="stat-card" loading={loading}>
             <Statistic
               title="Inactive/Expired"
               value={data.stats.inactiveTenants ?? 0}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
               prefix={<CloseCircleOutlined />}
             />
           </Card>
@@ -283,24 +283,30 @@ export default function Dashboard() {
             title="Expiring Soon (7 Days)"
             variant="borderless"
             extra={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-            bodyStyle={{ padding: '0 24px' }}
+            styles={{ body: { padding: '12px 24px' } }}
           >
-            <List
-              loading={loading}
-              itemLayout="horizontal"
-              dataSource={data.expiringSoon}
-              renderItem={(item: any) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#fffbe6', color: '#faad14' }} />}
-                    title={item.businessName}
-                    description={`Expires: ${new Date(item.subscriptions[0].endDate).toLocaleDateString()}`}
-                  />
-                  <Tag color="warning">Renew</Tag>
-                </List.Item>
+            <Flex vertical gap="small">
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}><Spin /></div>
+              ) : data.expiringSoon.length > 0 ? (
+                data.expiringSoon.map((item: any) => (
+                  <Flex key={item.id} align="center" justify="space-between" style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                    <Flex gap="middle" align="center">
+                      <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#fffbe6', color: '#faad14' }} />
+                      <div>
+                        <Text strong style={{ display: 'block' }}>{item.businessName}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Expires: {new Date(item.subscriptions[0].endDate).toLocaleDateString()}
+                        </Text>
+                      </div>
+                    </Flex>
+                    <Tag color="warning">Renew</Tag>
+                  </Flex>
+                ))
+              ) : (
+                <Empty description="No urgent renewals" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               )}
-              locale={{ emptyText: 'No urgent renewals' }}
-            />
+            </Flex>
           </Card>
         </Col>
       </Row>

@@ -62,7 +62,6 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.8}
       onPress={onPress}
       disabled={isDisabled}
-      renderToHardwareTextureAndroid={true}
       style={[
         {
           height: heights[size],
