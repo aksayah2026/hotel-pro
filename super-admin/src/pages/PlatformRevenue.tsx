@@ -171,17 +171,44 @@ export default function PlatformRevenue() {
               dataSource={data?.tenantWise}
               loading={loading}
               columns={[
-                { title: 'Business Name', dataIndex: 'name', key: 'name' },
+                { 
+                  title: 'Business Name', 
+                  dataIndex: 'businessName', 
+                  key: 'businessName',
+                  render: (t: string, record: any) => {
+                    const isDeleted = !!record.isDeleted;
+                    const displayName = t || 'Deleted Tenant';
+                    return (
+                      <Space>
+                        <Text strong type={isDeleted ? 'secondary' : undefined}>
+                          {displayName}
+                        </Text>
+                        {isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
+                      </Space>
+                    );
+                  }
+                },
                 {
                   title: 'Platform Contribution',
                   dataIndex: 'revenue',
                   key: 'revenue',
-                  render: (val) => <Text strong>₹{val.toLocaleString()}</Text>
+                  render: (val, record: any) => {
+                    const isDeleted = !!record.isDeleted;
+                    return (
+                      <Text strong style={{ color: isDeleted ? '#8c8c8c' : undefined }}>
+                        ₹{val.toLocaleString()}
+                      </Text>
+                    );
+                  }
                 },
                 {
                   title: 'Status',
                   key: 'status',
-                  render: () => <Tag color="success">Paid</Tag>
+                  render: (_, record: any) => (
+                    record.isDeleted 
+                      ? <Tag color="default">Deleted</Tag>
+                      : <Tag color="success">Paid</Tag>
+                  )
                 }
               ]}
               pagination={false}

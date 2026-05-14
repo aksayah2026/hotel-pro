@@ -38,11 +38,12 @@ async function getSuperAdminStatsData(queryParams) {
     saasRevenueByTenant
   ] = await Promise.all([
     prisma.tenant.findMany({
-      where: { isDeleted: false, isSystem: false },
+      where: { isSystem: false },
       select: {
         id: true,
         businessName: true,
         isActive: true,
+        isDeleted: true,
         createdAt: true,
         subscriptions: {
           orderBy: { endDate: 'desc' },
@@ -74,15 +75,18 @@ async function getSuperAdminStatsData(queryParams) {
     })
   ]);
 
+  // Separate non-deleted cohort for standard metrics computations
+  const nonDeletedTenants = tenants.filter(t => !t.isDeleted);
+
   // 1. Total Businesses: created strictly within range [startDate, endDate)
-  const filteredCreatedTenants = tenants.filter(t => {
+  const filteredCreatedTenants = nonDeletedTenants.filter(t => {
     const cDate = new Date(t.createdAt);
     return cDate >= startDate && cDate < endDate;
   });
   const totalTenants = filteredCreatedTenants.length;
 
   // 2. Active Licenses: licenses active during selected date range
-  const activeTenantsCount = tenants.filter(t => {
+  const activeTenantsCount = nonDeletedTenants.filter(t => {
     return t.subscriptions.some(sub => {
       const sDate = new Date(sub.startDate);
       const eDate = new Date(sub.endDate);
@@ -91,7 +95,7 @@ async function getSuperAdminStatsData(queryParams) {
   }).length;
 
   // 3. Inactive / Expired Licenses:
-  const inactiveTenantsCount = tenants.filter(t => {
+  const inactiveTenantsCount = nonDeletedTenants.filter(t => {
     const hasExpiredInRange = t.subscriptions.some(sub => {
       const eDate = new Date(sub.endDate);
       return eDate >= startDate && eDate < endDate && sub.status !== 'ACTIVE';
@@ -131,12 +135,16 @@ async function getSuperAdminStatsData(queryParams) {
   const planWise = Object.values(planCounts);
 
   // Tenant-wise breakdown mapped in memory instead of N+1 DB calls!
-  const tenantMap = new Map(tenants.map(t => [t.id, t.businessName]));
-  const tenantRevenue = saasRevenueByTenant.map(item => ({
-    name: tenantMap.get(item.tenantId) || 'Deleted Tenant',
-    revenue: item._sum.amount || 0,
-    isDeleted: !tenantMap.has(item.tenantId)
-  }));
+  // We map EVERY tenant in the DB to its original name and deletion boolean
+  const tenantMap = new Map(tenants.map(t => [t.id, { businessName: t.businessName, isDeleted: t.isDeleted }]));
+  const tenantRevenue = saasRevenueByTenant.map(item => {
+    const mapped = tenantMap.get(item.tenantId);
+    return {
+      businessName: (mapped && mapped.businessName) ? mapped.businessName : 'Deleted Tenant',
+      revenue: item._sum.amount || 0,
+      isDeleted: mapped ? mapped.isDeleted : true
+    };
+  });
 
   tenantRevenue.sort((a, b) => b.revenue - a.revenue);
   const topTenants = tenantRevenue.slice(0, 10);
@@ -144,7 +152,7 @@ async function getSuperAdminStatsData(queryParams) {
   // Expiring soon (Actionable - relative to real live timestamp)
   const nextWeek = new Date();
   nextWeek.setDate(now.getDate() + 7);
-  const expiringSoon = tenants.filter(t => {
+  const expiringSoon = nonDeletedTenants.filter(t => {
     return t.subscriptions.some(sub => {
       const eDate = new Date(sub.endDate);
       return eDate >= now && eDate <= nextWeek;
@@ -271,7 +279,7 @@ const exportSuperAdminStats = async (req, res) => {
     csvContent += `"TOP CONTRIBUTING BUSINESSES"\r\n`;
     csvContent += `"Hotel/Business Name","Revenue Provided (INR)","Activity State"\r\n`;
     data.tenantWise.forEach(row => {
-      csvContent += `"${row.name}","${Number(row.revenue).toFixed(2)}","${row.isDeleted ? 'Deleted' : 'Active'}"\r\n`;
+      csvContent += `"${row.businessName}","${Number(row.revenue).toFixed(2)}","${row.isDeleted ? 'Deleted' : 'Active'}"\r\n`;
     });
 
     // Set standard headers for dynamic file downloads

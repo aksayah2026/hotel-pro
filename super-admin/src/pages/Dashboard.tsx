@@ -310,33 +310,40 @@ export default function Dashboard() {
             <Table
               dataSource={data.tenantWise}
               pagination={false}
-              rowKey="name"
+              rowKey="businessName"
               size="middle"
               loading={loading}
               locale={{ emptyText: 'No revenue records found' }}
               columns={[
                 {
                   title: 'Hotel Name',
-                  dataIndex: 'name',
-                  key: 'name',
-                  render: (t, record) => (
-                    <Space>
-                      <Text strong type={record.isDeleted ? 'secondary' : undefined}>
-                        {t}
-                      </Text>
-                      {record.isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
-                    </Space>
-                  )
+                  dataIndex: 'businessName',
+                  key: 'businessName',
+                  render: (t, record) => {
+                    const isDeleted = !!record.isDeleted;
+                    const displayName = t || 'Deleted Tenant';
+                    return (
+                      <Space>
+                        <Text strong type={isDeleted ? 'secondary' : undefined}>
+                          {displayName}
+                        </Text>
+                        {isDeleted && <Tag color="error" style={{ fontSize: '10px' }}>Deleted</Tag>}
+                      </Space>
+                    );
+                  }
                 },
                 {
                   title: 'Lifetime SaaS Revenue',
                   dataIndex: 'revenue',
                   key: 'revenue',
-                  render: (a, record) => (
-                    <Text style={{ color: record.isDeleted ? '#8c8c8c' : '#52c41a' }}>
-                      ₹{Number(a || 0).toLocaleString('en-IN')}
-                    </Text>
-                  )
+                  render: (a, record) => {
+                    const isDeleted = !!record.isDeleted;
+                    return (
+                      <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a' }}>
+                        ₹{Number(a || 0).toLocaleString('en-IN')}
+                      </Text>
+                    );
+                  }
                 },
               ]}
             />
