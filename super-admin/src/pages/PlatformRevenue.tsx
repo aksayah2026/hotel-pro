@@ -117,7 +117,7 @@ export default function PlatformRevenue() {
               value={stats.totalRevenue ?? 0}
               precision={2}
               prefix={<Text style={{ color: '#52c41a', marginRight: 4 }}>₹</Text>}
-              styles={{ content: { color: '#52c41a' } }}
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
@@ -137,7 +137,7 @@ export default function PlatformRevenue() {
               value={stats.totalRevenue / (stats.totalTenants || 1)}
               precision={2}
               prefix="₹"
-              styles={{ content: { color: '#13c2c2' } }}
+              valueStyle={{ color: '#13c2c2' }}
             />
           </Card>
         </Col>

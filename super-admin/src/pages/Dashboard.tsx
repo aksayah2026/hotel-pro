@@ -216,7 +216,7 @@ export default function Dashboard() {
                 value={data.stats.totalRevenue ?? 0}
                 precision={0}
                 prefix={<Text style={{ color: '#52c41a', marginRight: 4 }}>₹</Text>}
-                styles={{ content: { color: '#52c41a' } }}
+                valueStyle={{ color: '#52c41a' }}
               />
             </Tooltip>
           </Card>
@@ -227,7 +227,7 @@ export default function Dashboard() {
             <Statistic
               title="Active Licenses"
               value={data.stats.activeTenants ?? 0}
-              styles={{ content: { color: '#3f8600' } }}
+              valueStyle={{ color: '#3f8600' }}
               prefix={<CheckCircleOutlined />}
             />
           </Card>
@@ -237,7 +237,7 @@ export default function Dashboard() {
             <Statistic
               title="Inactive/Expired"
               value={data.stats.inactiveTenants ?? 0}
-              styles={{ content: { color: '#cf1322' } }}
+              valueStyle={{ color: '#cf1322' }}
               prefix={<CloseCircleOutlined />}
             />
           </Card>
