@@ -27,9 +27,13 @@ async function getSuperAdminStatsData(queryParams) {
     // month - 1 for zero-based index
     startDate = new Date(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0);
     endDate = new Date(selectedYear, selectedMonth, 1, 0, 0, 0, 0);
-  } else {
+  } else if (filterType === 'yearly') {
     startDate = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
     endDate = new Date(selectedYear + 1, 0, 1, 0, 0, 0, 0);
+  } else {
+    // 'all' time
+    startDate = new Date(2000, 0, 1, 0, 0, 0, 0);
+    endDate = new Date(2100, 0, 1, 0, 0, 0, 0);
   }
 
   const [
@@ -136,7 +140,12 @@ async function getSuperAdminStatsData(queryParams) {
 
   // Tenant-wise breakdown mapped in memory instead of N+1 DB calls!
   // We map EVERY tenant in the DB to its original name and deletion boolean
-  const tenantMap = new Map(tenants.map(t => [t.id, { businessName: t.businessName, isDeleted: t.isDeleted }]));
+  const tenantMap = new Map(tenants.map(t => [t.id, { 
+    businessName: t.businessName, 
+    isDeleted: t.isDeleted,
+    createdAt: t.createdAt,
+    plan: t.subscriptions[0]?.plan?.name || 'N/A'
+  }]));
   const tenantRevenue = saasRevenueByTenant.map(item => {
     const mapped = tenantMap.get(item.tenantId);
     const nameVal = (mapped && mapped.businessName) ? mapped.businessName : 'Deleted Tenant';
@@ -145,12 +154,22 @@ async function getSuperAdminStatsData(queryParams) {
       name: nameVal,
       businessName: nameVal,
       revenue: item._sum.amount || 0,
-      isDeleted: mapped ? mapped.isDeleted : true
+      isDeleted: mapped ? mapped.isDeleted : true,
+      createdAt: mapped ? mapped.createdAt : new Date(),
+      plan: mapped ? mapped.plan : 'N/A'
     };
   });
 
   tenantRevenue.sort((a, b) => b.revenue - a.revenue);
-  const topTenants = tenantRevenue.slice(0, 10);
+
+  // If search is provided, filter the results
+  let filteredTenantRevenue = tenantRevenue;
+  if (queryParams.search) {
+    const s = queryParams.search.toLowerCase();
+    filteredTenantRevenue = tenantRevenue.filter(t => t.businessName.toLowerCase().includes(s));
+  }
+
+  const topTenants = filteredTenantRevenue.slice(0, 10);
 
   // Expiring soon (Actionable - relative to real live timestamp)
   const nextWeek = new Date();
@@ -198,6 +217,7 @@ async function getSuperAdminStatsData(queryParams) {
       monthlyRevenue,
       planWise,
       tenantWise: topTenants,
+      fullTenantWise: filteredTenantRevenue, // Include full list for export
       expiringSoon,
       recentTenants
     }
@@ -279,10 +299,19 @@ const exportSuperAdminStats = async (req, res) => {
     csvContent += `\r\n`;
 
     // Section 4: Tenant Revenue Contributions Table
-    csvContent += `"TOP CONTRIBUTING BUSINESSES"\r\n`;
-    csvContent += `"Hotel/Business Name","Revenue Provided (INR)","Activity State"\r\n`;
-    data.tenantWise.forEach(row => {
-      csvContent += `"${row.businessName}","${Number(row.revenue).toFixed(2)}","${row.isDeleted ? 'Deleted' : 'Active'}"\r\n`;
+    csvContent += `"TENANT REVENUE BREAKDOWN"\r\n`;
+    csvContent += `"Hotel/Business Name","Revenue Provided (INR)","Current Plan","Status","Created Date"\r\n`;
+    
+    // For export, we use the full filtered list, not just top 10
+    // We re-run the logic but without the slice
+    const fullTenantRevenue = data.tenantWise; 
+    // Wait, the data object from getSuperAdminStatsData only has topTenants in 'tenantWise'
+    // I should have modified getSuperAdminStatsData to return the full list or passed a flag.
+    
+    // I'll re-fetch the full list here or just use the filteredTenantRevenue if I modify the helper
+    // Actually, I'll just use the full list I'll add to the data object.
+    (data.fullTenantWise || data.tenantWise).forEach(row => {
+      csvContent += `"${row.businessName}","${Number(row.revenue).toFixed(2)}","${row.plan || 'N/A'}","${row.isDeleted ? 'Archived' : 'Active'}","${new Date(row.createdAt).toLocaleDateString()}"\r\n`;
     });
 
     // Set standard headers for dynamic file downloads
@@ -295,7 +324,100 @@ const exportSuperAdminStats = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/super-admin/revenue
+const getTenantRevenueBreakdown = async (req, res) => {
+  try {
+    const { 
+      type = 'monthly', 
+      year = new Date().getFullYear(), 
+      month = new Date().getMonth() + 1,
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'revenue',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const pLimit = parseInt(limit);
+    const pPage = parseInt(page);
+    const skip = (pPage - 1) * pLimit;
+
+    // Date boundaries
+    const selectedYear = parseInt(year);
+    const selectedMonth = parseInt(month);
+    let startDate, endDate;
+
+    if (type === 'monthly') {
+      startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      endDate = new Date(selectedYear, selectedMonth, 1);
+    } else if (type === 'yearly') {
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear + 1, 0, 1);
+    } else {
+      startDate = new Date(2000, 0, 1);
+      endDate = new Date(2100, 0, 1);
+    }
+
+    // Validate sortBy and sortOrder for raw query injection safety
+    const allowedSortFields = ['revenue', 'businessName', 'createdAt'];
+    const finalSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'revenue';
+    const finalSortOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    // 1. Get total count for pagination
+    const countResult = await prisma.tenant.count({
+      where: {
+        isSystem: false,
+        businessName: { contains: search, mode: 'insensitive' }
+      }
+    });
+
+    // 2. Fetch paginated data using raw SQL for complex join+aggregation
+    // Note: We use double quotes for Postgres case-sensitivity if needed, 
+    // but Prisma maps them usually.
+    const result = await prisma.$queryRawUnsafe(`
+      SELECT 
+        t.id, 
+        t."businessName", 
+        t."isActive", 
+        t."isDeleted", 
+        t."createdAt",
+        COALESCE(SUM(p.amount), 0) as revenue,
+        (SELECT sp.name 
+         FROM subscriptions s 
+         JOIN subscription_plans sp ON s."planId" = sp.id 
+         WHERE s."tenantId" = t.id 
+         ORDER BY s."endDate" DESC LIMIT 1) as plan
+      FROM tenants t
+      LEFT JOIN saas_payments p ON t.id = p."tenantId" 
+        AND p.status = 'COMPLETED' 
+        AND (
+          (p."paidAt" >= $1 AND p."paidAt" < $2) OR 
+          (p."paidAt" IS NULL AND p."createdAt" >= $1 AND p."createdAt" < $2)
+        )
+      WHERE t."isSystem" = false AND t."businessName" ILIKE $3
+      GROUP BY t.id
+      ORDER BY ${finalSortBy === 'revenue' ? 'revenue' : `t."${finalSortBy}"`} ${finalSortOrder}
+      LIMIT $4 OFFSET $5
+    `, startDate, endDate, `%${search}%`, pLimit, skip);
+
+    res.json({
+      success: true,
+      data: result,
+      pagination: {
+        total: countResult,
+        page: pPage,
+        limit: pLimit,
+        totalPages: Math.ceil(countResult / pLimit)
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = { 
   getSuperAdminStats,
-  exportSuperAdminStats 
+  exportSuperAdminStats,
+  getTenantRevenueBreakdown
 };

@@ -69,6 +69,16 @@ export interface CreateBookingPayload {
 }
 
 export const bookingService = {
+  checkConnectivity: async () => {
+    try {
+      await api.get('/health', { timeout: 5000 });
+      return true;
+    } catch (err) {
+      console.error('[KYC Upload] Connectivity Check Failed:', err);
+      return false;
+    }
+  },
+
   getAll: (params?: { type?: string; status?: string; page?: number; limit?: number; search?: string; roomId?: string; startDate?: string; endDate?: string; sort?: string; }) =>
     api.get<{ success: boolean; data: Booking[]; pagination: any }>('/bookings', { params }),
 
@@ -94,34 +104,65 @@ export const bookingService = {
     api.patch(`/bookings/${id}/cancel`),
 
   uploadAadhaar: async (uri: string) => {
+    console.log('[KYC Upload] Initializing Aadhaar upload for URI:', uri);
     const formData = new FormData();
     
-    // 1. Extract filename and sanitize from query params
+    // 1. Sanitize URI and extract filename
+    // Android often uses content:// URIs or provides file paths with query params
     const cleanUri = uri.split('?')[0];
-    let filename = cleanUri.split('/').pop() || 'aadhaar.jpg';
+    let filename = cleanUri.split('/').pop() || `aadhaar-${Date.now()}.jpg`;
     
-    // 2. Dynamically extract extension and detect type
+    // 2. Dynamically extract extension and detect MIME type
     const extMatch = /\.(\w+)$/.exec(filename);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
     
+    // Support common formats and HEIC/HEIF from newer devices
     let type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
     if (ext === 'heic' || ext === 'heif') {
       type = `image/${ext}`;
     }
 
-    // Double check filename has an extension
+    // Ensure filename has an extension for the backend's path.extname to work
     if (!filename.includes('.')) {
       filename = `${filename}.${ext}`;
     }
 
+    console.log('[KYC Upload] Metadata detected:', { filename, ext, type, uri });
+
+    // 3. Construct FormData specifically for React Native Android compatibility
     formData.append('aadhaar', {
-      uri,
+      uri: uri, // Use original URI (content:// or file://)
       name: filename,
       type,
     } as any);
 
-    return api.post<{ success: boolean; data: { url: string } }>('/bookings/aadhaar/upload', formData, {
-      headers: { 'Accept': 'application/json' },
-    });
+    try {
+      const response = await api.post<{ success: boolean; data: { url: string } }>('/bookings/aadhaar/upload', formData, {
+        headers: { 
+          'Accept': 'application/json',
+          // CRITICAL: Do NOT set 'Content-Type': 'multipart/form-data' manually.
+          // Axios will automatically set it along with the correct boundary when it sees FormData.
+        },
+        // Increase timeout for large image uploads over mobile data
+        timeout: 60000, 
+      });
+      
+      console.log('[KYC Upload] Success:', response.data);
+      return response;
+    } catch (error: any) {
+      console.error('[KYC Upload] Network Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      
+      // Re-throw with more descriptive message if available
+      const backendMessage = error.response?.data?.message;
+      if (backendMessage) {
+        throw new Error(backendMessage);
+      }
+      throw error;
+    }
   },
 };

@@ -87,54 +87,80 @@ export default function CustomerDetailsScreen() {
     });
   }, [form.name, form.mobile, form.email]);
 
-  const pickAadhaar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Photo library permission is required to upload Aadhaar');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setAadhaarImageUri(uri);
-      setUploadingAadhaar(true);
-      try {
-        const res = await bookingService.uploadAadhaar(uri);
-        setAadhaarUrl(res.data.data.url);
-      } catch {
-        Alert.alert('Upload Failed', 'Failed to upload Aadhaar image. Please try again.');
+  const uploadAadhaarWithCheck = async (uri: string) => {
+    setUploadingAadhaar(true);
+    try {
+      // 1. Perform Connectivity Ping
+      const isConnected = await bookingService.checkConnectivity();
+      if (!isConnected) {
+        Alert.alert(
+          'Connection Error', 
+          'Unable to reach the server. Please ensure:\n1. Your phone is on the same WiFi as the PC.\n2. The BASE_URL in api.ts is set to your PC\'s IP.'
+        );
         setAadhaarImageUri(null);
-      } finally {
-        setUploadingAadhaar(false);
+        return;
       }
+
+      // 2. Proceed with Upload
+      const res = await bookingService.uploadAadhaar(uri);
+      setAadhaarUrl(res.data.data.url);
+      setErrors(prev => ({ ...prev, aadhaar: undefined }));
+    } catch (err: any) {
+      console.error('[KYC] Final Upload Error:', err);
+      Alert.alert('Upload Failed', err.message || 'Something went wrong during the upload. Please try again.');
+      setAadhaarImageUri(null);
+      setAadhaarUrl(null);
+    } finally {
+      setUploadingAadhaar(false);
+    }
+  };
+
+  const pickAadhaar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Photo library permission is required to select an Aadhaar image. Please enable it in your device settings.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, 
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setAadhaarImageUri(uri);
+        await uploadAadhaarWithCheck(uri);
+      }
+    } catch (err) {
+      console.error('[Gallery Error]', err);
+      Alert.alert('Error', 'An unexpected error occurred while picking the image.');
     }
   };
 
   const captureAadhaar = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera permission is required');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true, quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setAadhaarImageUri(uri);
-      setUploadingAadhaar(true);
-      try {
-        const res = await bookingService.uploadAadhaar(uri);
-        setAadhaarUrl(res.data.data.url);
-      } catch {
-        Alert.alert('Upload Failed', 'Failed to upload Aadhaar image. Please try again.');
-        setAadhaarImageUri(null);
-      } finally {
-        setUploadingAadhaar(false);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to capture Aadhaar card photo.');
+        return;
       }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true, 
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setAadhaarImageUri(uri);
+        await uploadAadhaarWithCheck(uri);
+      }
+    } catch (err) {
+      console.error('[Camera Error]', err);
+      Alert.alert('Error', 'An unexpected error occurred while using the camera.');
     }
   };
 

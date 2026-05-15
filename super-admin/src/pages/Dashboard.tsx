@@ -3,7 +3,8 @@ import api from '../api';
 
 import {
   Card, Row, Col, Statistic, Typography, Table, Tag, message,
-  Avatar, Space, Select, DatePicker, Button, Tooltip, Flex, Empty, Spin
+  Avatar, Space, Select, DatePicker, Button, Tooltip, Flex, Empty, Spin,
+  Input
 } from 'antd';
 
 import {
@@ -17,7 +18,8 @@ import {
   FilterOutlined,
   DownloadOutlined,
   CloseCircleOutlined,
-  InboxOutlined
+  InboxOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 const RevenueChart = React.lazy(() => import('../components/RevenueChart'));
 const PlanChart = React.lazy(() => import('../components/PlanChart'));
@@ -56,24 +58,39 @@ export default function Dashboard() {
   const [filter, setFilter] = useState({
     type: 'monthly',
     year: dayjs().year(),
-    month: dayjs().month() + 1,
-    planId: undefined
+    month: dayjs().month() + 1
   });
+
+  const [tableData, setTableData] = useState<any[]>([]);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  const [search, setSearch] = useState('');
+  const [sorter, setSorter] = useState({ field: 'revenue', order: 'descend' });
 
   const handleExport = async () => {
     setExportLoading(true);
     message.loading({ content: 'Preparing report...', key: 'exporting' });
     try {
       const res = await api.get('/dashboard/super-admin/export', {
-        params: filter,
+        params: {
+          ...filter,
+          search,
+          sortBy: sorter.field,
+          sortOrder: sorter.order === 'ascend' ? 'asc' : 'desc'
+        },
         responseType: 'blob'
       });
       
-      // Build precise Dynamic Filename matching filter state
       let formattedName = `Executive_Overview_Year_${filter.year}.csv`;
       if (filter.type === 'monthly') {
         const monthStr = dayjs().month(filter.month - 1).format('MMMM');
         formattedName = `Executive_Overview_${monthStr}_${filter.year}.csv`;
+      } else if (filter.type === 'all') {
+        formattedName = `Executive_Overview_All_Time.csv`;
       }
 
       const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
@@ -82,11 +99,7 @@ export default function Dashboard() {
       link.href = url;
       link.setAttribute('download', formattedName);
       document.body.appendChild(link);
-      
-      // Trigger Native Browser Save Stream
       link.click();
-      
-      // Clean cache to prevent Memory leak
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
@@ -107,16 +120,54 @@ export default function Dashboard() {
       });
       setData(res.data.data);
     } catch (err) {
-      // Error is handled globally in api.ts interceptor
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRevenueData = async (page = 1, limit = 10, searchStr = '', sort = sorter) => {
+    setTableLoading(true);
+    try {
+      const res = await api.get('/dashboard/super-admin/revenue', {
+        params: {
+          ...filter,
+          page,
+          limit,
+          search: searchStr,
+          sortBy: sort.field,
+          sortOrder: sort.order === 'ascend' ? 'asc' : 'desc'
+        }
+      });
+      setTableData(res.data.data);
+      setPagination({
+        ...pagination,
+        current: res.data.pagination.page,
+        total: res.data.pagination.total,
+        pageSize: res.data.pagination.limit
+      });
+    } catch (err) {
+    } finally {
+      setTableLoading(false);
     }
   };
 
 
   useEffect(() => {
     fetchData();
+    fetchRevenueData(1, pagination.pageSize, search, sorter);
   }, [filter]);
+
+  const onTableChange = (newPagination: any, filters: any, newSorter: any) => {
+    const s = Array.isArray(newSorter) ? newSorter[0] : newSorter;
+    const sortParams = s.field ? { field: s.field, order: s.order } : { field: 'revenue', order: 'descend' };
+    setSorter(sortParams);
+    fetchRevenueData(newPagination.current, newPagination.pageSize, search, sortParams);
+  };
+
+  const onSearch = (value: string) => {
+    setSearch(value);
+    fetchRevenueData(1, pagination.pageSize, value, sorter);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -158,45 +209,11 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '0 0 24px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
-          <Title level={2} style={{ margin: 0 }}>Executive Overview</Title>
-          <Text type="secondary">Real-time platform performance and platform revenue analytics</Text>
+          <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: '-0.5px' }}>Executive Overview</Title>
+          <Text type="secondary" style={{ fontSize: '15px' }}>Real-time platform performance and revenue analytics across all business units</Text>
         </div>
-        <Space size="middle">
-          <Select
-            value={filter.type}
-            onChange={(val) => setFilter({ ...filter, type: val })}
-            style={{ width: 120 }}
-          >
-            <Option value="monthly">Monthly</Option>
-            <Option value="yearly">Yearly</Option>
-          </Select>
-
-          {filter.type === 'monthly' ? (
-            <DatePicker
-              picker="month"
-              value={dayjs().year(filter.year).month(filter.month - 1)}
-              onChange={(date) => setFilter({ ...filter, year: date?.year(), month: (date?.month() || 0) + 1 })}
-              allowClear={false}
-            />
-          ) : (
-            <DatePicker
-              picker="year"
-              value={dayjs().year(filter.year)}
-              onChange={(date) => setFilter({ ...filter, year: date?.year() })}
-              allowClear={false}
-            />
-          )}
-
-          <Button 
-            icon={<DownloadOutlined />} 
-            loading={exportLoading} 
-            onClick={handleExport}
-          >
-            Export
-          </Button>
-        </Space>
       </div>
 
       <Row gutter={[24, 24]}>
@@ -313,16 +330,80 @@ export default function Dashboard() {
       </Row>
       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col span={24}>
-          <Card title="Tenant-wise Revenue Breakdown" variant="borderless" extra={<Text type="secondary">Top 10 Contributors</Text>}>
+          <Card 
+            title="Tenant-wise Revenue Breakdown" 
+            variant="borderless" 
+            extra={
+              <Flex gap="small" wrap="wrap" align="center" className="dashboard-toolbar">
+                <Input
+                  placeholder="Search hotels..."
+                  prefix={<SearchOutlined style={{ color: '#bfbfbf', marginRight: 4 }} />}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="modern-input"
+                  style={{ width: 220 }}
+                  allowClear
+                />
+                
+                <Select
+                  value={filter.type}
+                  onChange={(val) => setFilter({ ...filter, type: val })}
+                  style={{ width: 110 }}
+                  className="modern-select"
+                >
+                  <Option value="monthly">Monthly</Option>
+                  <Option value="yearly">Yearly</Option>
+                  <Option value="all">All Time</Option>
+                </Select>
+
+                {filter.type === 'monthly' && (
+                  <DatePicker
+                    picker="month"
+                    value={dayjs().year(filter.year).month(filter.month - 1)}
+                    onChange={(date) => setFilter({ ...filter, year: date?.year() || dayjs().year(), month: (date?.month() || 0) + 1 })}
+                    allowClear={false}
+                    className="modern-datepicker"
+                    style={{ width: 140 }}
+                  />
+                )}
+                
+                {filter.type === 'yearly' && (
+                  <DatePicker
+                    picker="year"
+                    value={dayjs().year(filter.year)}
+                    onChange={(date) => setFilter({ ...filter, year: date?.year() || dayjs().year() })}
+                    allowClear={false}
+                    className="modern-datepicker"
+                    style={{ width: 110 }}
+                  />
+                )}
+
+                <Button 
+                  icon={<DownloadOutlined />} 
+                  loading={exportLoading} 
+                  onClick={handleExport}
+                  type="primary"
+                  className="modern-button"
+                >
+                  Export
+                </Button>
+              </Flex>
+            }
+          >
              <Table
-               dataSource={data.tenantWise}
-               pagination={false}
-               rowKey={(record: any) => record.id || record.businessName || record.name || Math.random().toString()}
+               dataSource={tableData}
+               pagination={{
+                 ...pagination,
+                 showSizeChanger: true,
+                 pageSizeOptions: ['10', '25', '50', '100'],
+                 showTotal: (total) => `Total ${total} hotels`
+               }}
+               onChange={onTableChange}
+               rowKey="id"
                size="middle"
-               loading={loading}
+               loading={tableLoading}
                locale={{ emptyText: 'No revenue records found' }}
                rowClassName={(record: any) => {
-                 const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
+                 const isDeleted = !!record.isDeleted || record.businessName === 'Deleted Tenant';
                  return isDeleted ? 'archived-row' : '';
                }}
                columns={[
@@ -330,10 +411,10 @@ export default function Dashboard() {
                    title: 'Hotel Name',
                    dataIndex: 'businessName',
                    key: 'businessName',
-                   width: '45%',
+                   sorter: true,
                    render: (t, record: any) => {
-                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
-                     const displayName = t || record.name || record.businessName || 'Deleted Tenant';
+                     const isDeleted = !!record.isDeleted || record.businessName === 'Deleted Tenant';
+                     const displayName = t || 'Deleted Tenant';
                      return (
                        <Space align="center">
                          {isDeleted && <InboxOutlined style={{ color: '#8c8c8c' }} />}
@@ -341,12 +422,8 @@ export default function Dashboard() {
                            strong={!isDeleted} 
                            delete={isDeleted} 
                            type={isDeleted ? 'secondary' : undefined}
-                           style={{ 
-                             whiteSpace: 'nowrap', 
-                             overflow: 'hidden', 
-                             textOverflow: 'ellipsis',
-                             maxWidth: 300
-                           }}
+                           style={{ maxWidth: 250 }}
+                           ellipsis
                          >
                            {displayName}
                          </Text>
@@ -355,12 +432,12 @@ export default function Dashboard() {
                    }
                  },
                  {
-                   title: 'Lifetime SaaS Revenue',
+                   title: 'Revenue',
                    dataIndex: 'revenue',
                    key: 'revenue',
-                   width: '35%',
+                   sorter: true,
                    render: (a, record: any) => {
-                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
+                     const isDeleted = !!record.isDeleted || record.businessName === 'Deleted Tenant';
                      return (
                        <Text style={{ color: isDeleted ? '#8c8c8c' : '#52c41a', whiteSpace: 'nowrap', fontWeight: isDeleted ? 400 : 600 }}>
                          ₹{Number(a || 0).toLocaleString('en-IN')}
@@ -369,11 +446,16 @@ export default function Dashboard() {
                    }
                  },
                  {
+                    title: 'Current Plan',
+                    dataIndex: 'plan',
+                    key: 'plan',
+                    render: (p) => <Tag color="blue">{p || 'N/A'}</Tag>
+                 },
+                 {
                    title: 'Status',
                    key: 'status',
-                   width: '20%',
                    render: (_, record: any) => {
-                     const isDeleted = !!record.isDeleted || record.name === 'Deleted Tenant' || record.businessName === 'Deleted Tenant';
+                     const isDeleted = !!record.isDeleted || record.businessName === 'Deleted Tenant';
                      return (
                        <Tag 
                          bordered={false}
@@ -385,6 +467,13 @@ export default function Dashboard() {
                        </Tag>
                      );
                    }
+                 },
+                 {
+                   title: 'Created Date',
+                   dataIndex: 'createdAt',
+                   key: 'createdAt',
+                   sorter: true,
+                   render: (d) => dayjs(d).format('DD MMM YYYY')
                  }
                ]}
              />

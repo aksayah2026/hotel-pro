@@ -133,4 +133,43 @@ body {
   background-color: #fafafa !important;
 }
 
+/* Dashboard Toolbar Aesthetics */
+.modern-input, .modern-select .ant-select-selector, .modern-datepicker, .modern-button {
+  border-radius: 12px !important;
+  height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  border-color: #e8e8e8 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+  transition: all 0.3s ease !important;
+}
+
+.modern-input:hover, .modern-input:focus, .modern-select:hover .ant-select-selector, .modern-datepicker:hover {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+.modern-input {
+  padding-left: 12px !important;
+}
+
+.dashboard-toolbar {
+  margin: 8px 0;
+}
+
+.ant-card-extra {
+  padding: 8px 0 !important;
+}
+
+@media (max-width: 768px) {
+  .dashboard-toolbar {
+    justify-content: flex-start;
+    gap: 12px !important;
+  }
+  
+  .modern-input {
+    width: 100% !important;
+  }
+}
+
 
