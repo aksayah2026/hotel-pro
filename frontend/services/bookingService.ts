@@ -128,6 +128,8 @@ export const bookingService = {
     }
 
     console.log('[KYC Upload] Metadata detected:', { filename, ext, type, uri });
+    console.log('[KYC Upload] Axios BaseURL:', api.defaults.baseURL);
+    console.log('[KYC Upload] Full URL target:', `${api.defaults.baseURL}/bookings/aadhaar/upload`);
 
     // 3. Construct FormData specifically for React Native Android compatibility
     formData.append('aadhaar', {
@@ -137,27 +139,34 @@ export const bookingService = {
     } as any);
 
     try {
+      console.log('[KYC Upload] Sending request...');
       const response = await api.post<{ success: boolean; data: { url: string } }>('/bookings/aadhaar/upload', formData, {
         headers: { 
           'Accept': 'application/json',
           // CRITICAL: Do NOT set 'Content-Type': 'multipart/form-data' manually.
-          // Axios will automatically set it along with the correct boundary when it sees FormData.
         },
-        // Increase timeout for large image uploads over mobile data
         timeout: 60000, 
       });
       
       console.log('[KYC Upload] Success:', response.data);
       return response;
     } catch (error: any) {
-      console.error('[KYC Upload] Network Error:', {
+      console.error('[KYC Upload] ERROR DETAILS:', {
         message: error.message,
-        response: error.response?.data,
+        code: error.code,
+        isAxiosError: error.isAxiosError,
+        request: error.request ? 'Request object exists' : 'No request object',
+        response: error.response?.data || 'No response data',
         status: error.response?.status,
-        url: error.config?.url
+        url: error.config?.url,
+        baseUrl: error.config?.baseURL,
+        method: error.config?.method
       });
       
-      // Re-throw with more descriptive message if available
+      if (error.message === 'Network Error') {
+        console.error('[KYC Upload] Troubleshooting Network Error: Ensure Android Cleartext is enabled and BASE_URL IP is correct.');
+      }
+      
       const backendMessage = error.response?.data?.message;
       if (backendMessage) {
         throw new Error(backendMessage);

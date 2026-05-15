@@ -38,7 +38,7 @@ if (!fs.existsSync(uploadDir)) {
 
 // Middleware
 app.use(cors({ 
-  origin: ["http://localhost:5173", "http://localhost:8081", "https://admin.hotelpro.aksayah.com"], 
+  origin: ["http://localhost:5173", "http://localhost:8081", "http://192.168.0.114:8081", "https://admin.hotelpro.aksayah.com"], 
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "CSRF-Token"] 
@@ -119,9 +119,10 @@ app.use((req, res) => {
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Hotel Management Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📡 Bound to: 0.0.0.0 (Accepts external connections)`);
 });
 
 module.exports = app;

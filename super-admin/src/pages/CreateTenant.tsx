@@ -88,7 +88,10 @@ export default function CreateTenant() {
               <Form.Item
                 name="businessName"
                 label="Hotel/Business Name"
-                rules={[{ required: true, message: 'Please enter hotel name' }]}
+                rules={[
+                  { required: true, message: 'Please enter hotel name' },
+                  { min: 3, message: 'Hotel name must be at least 3 characters' }
+                ]}
               >
                 <Input placeholder="e.g. Grand Residency" size="large" />
               </Form.Item>
@@ -97,7 +100,10 @@ export default function CreateTenant() {
               <Form.Item
                 name="ownerName"
                 label="Owner/Manager Name"
-                rules={[{ required: true, message: 'Please enter owner name' }]}
+                rules={[
+                  { required: true, message: 'Please enter owner name' },
+                  { min: 2, message: 'Owner name must be at least 2 characters' }
+                ]}
               >
                 <Input placeholder="e.g. John Doe" size="large" />
               </Form.Item>

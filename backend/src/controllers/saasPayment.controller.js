@@ -6,8 +6,13 @@ const createPayment = async (req, res) => {
   try {
     const { tenantId, amount, planId, method, paidAt } = req.body;
 
-    if (!tenantId || !amount || !planId || !method) {
-      return res.status(400).json({ success: false, message: 'tenantId, amount, planId, method are required' });
+    if (!tenantId || amount === undefined || !planId || !method) {
+      return res.status(400).json({ success: false, message: 'tenantId, amount, planId, and method are required' });
+    }
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be a positive number' });
     }
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });

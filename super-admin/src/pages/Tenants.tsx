@@ -632,10 +632,24 @@ export default function Tenants() {
         >
           <Title level={5}>Business Details</Title>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item name="businessName" label="Business Name" rules={[{ required: true }]}>
+            <Form.Item 
+              name="businessName" 
+              label="Business Name" 
+              rules={[
+                { required: true, message: 'Business name is required' },
+                { min: 3, message: 'Business name must be at least 3 characters' }
+              ]}
+            >
               <Input />
             </Form.Item>
-            <Form.Item name="ownerName" label="Owner Name" rules={[{ required: true }]}>
+            <Form.Item 
+              name="ownerName" 
+              label="Owner Name" 
+              rules={[
+                { required: true, message: 'Owner name is required' },
+                { min: 2, message: 'Owner name must be at least 2 characters' }
+              ]}
+            >
               <Input />
             </Form.Item>
           </div>
@@ -666,7 +680,13 @@ export default function Tenants() {
           <Form.Item name="mobile" label="Mobile Number (Unique)">
             <Input disabled />
           </Form.Item>
-          <Form.Item name="password" label="Set New Password (Optional)">
+          <Form.Item 
+            name="password" 
+            label="Set New Password (Optional)"
+            rules={[
+              { min: 6, message: 'Password must be at least 6 characters' }
+            ]}
+          >
             <Input.Password placeholder="Enter new password" />
           </Form.Item>
 

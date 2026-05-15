@@ -56,12 +56,24 @@ const createTenant = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const cleanPhone = phoneNumber.toString().replace(/\D/g, "");
-    if (cleanPhone.length !== 10) {
-      return res.status(400).json({ success: false, message: 'Phone number must contain 10 digits only' });
+    if (businessName.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Business name must be at least 3 characters long' });
     }
 
-    const cleanMobile = mobile.replace(/\D/g, "");
+    if (ownerName.trim().length < 2) {
+      return res.status(400).json({ success: false, message: 'Owner name must be at least 2 characters long' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+
+    const cleanPhone = phoneNumber.toString().replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Phone number must be exactly 10 digits' });
+    }
+
+    const cleanMobile = mobile.toString().replace(/\D/g, "");
     if (cleanMobile.length !== 10) {
       return res.status(400).json({ success: false, message: 'Mobile number must be exactly 10 digits' });
     }
@@ -74,7 +86,17 @@ const createTenant = async (req, res) => {
     }
 
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
-    if (!plan) return res.status(400).json({ success: false, message: 'Invalid plan' });
+    if (!plan) return res.status(400).json({ success: false, message: 'Invalid plan selected' });
+
+    // Amount and Discount Validation
+    const { discount = 0 } = req.body;
+    const numDiscount = parseFloat(discount) || 0;
+    if (numDiscount < 0) {
+      return res.status(400).json({ success: false, message: 'Discount cannot be negative' });
+    }
+    if (numDiscount > plan.price) {
+      return res.status(400).json({ success: false, message: `Discount cannot exceed plan price (₹${plan.price})` });
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -120,7 +142,8 @@ const createTenant = async (req, res) => {
 
       // Create SaaS Payment Record (if not free trial/system)
       const { discount = 0, paymentMethod = 'CASH' } = req.body;
-      const finalAmount = Math.max(0, plan.price - parseFloat(discount));
+      const numDiscount = parseFloat(discount) || 0;
+      const finalAmount = Math.max(0, plan.price - numDiscount);
 
       if (finalAmount > 0) {
         const saasPayment = await tx.saaSPayment.create({
@@ -333,6 +356,18 @@ const updateTenant = async (req, res) => {
       mobile, isActive, isBlocked, accessLevel, password
     } = req.body;
 
+    if (businessName && businessName.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Business name must be at least 3 characters long' });
+    }
+
+    if (ownerName && ownerName.trim().length < 2) {
+      return res.status(400).json({ success: false, message: 'Owner name must be at least 2 characters long' });
+    }
+
+    if (password && password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+
     let cleanPhone = phoneNumber;
     if (phoneNumber) {
       cleanPhone = phoneNumber.toString().replace(/\D/g, "");
@@ -343,7 +378,7 @@ const updateTenant = async (req, res) => {
 
     let cleanMobile = mobile;
     if (mobile) {
-      cleanMobile = mobile.replace(/\D/g, "");
+      cleanMobile = mobile.toString().replace(/\D/g, "");
       if (cleanMobile.length !== 10) {
         return res.status(400).json({ success: false, message: 'Mobile number must be exactly 10 digits' });
       }
@@ -397,6 +432,15 @@ const renewSubscription = async (req, res) => {
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
     if (!plan) return res.status(400).json({ success: false, message: 'Invalid plan' });
 
+    const { discount = 0 } = req.body;
+    const numDiscount = parseFloat(discount) || 0;
+    if (numDiscount < 0) {
+      return res.status(400).json({ success: false, message: 'Discount cannot be negative' });
+    }
+    if (numDiscount > plan.price) {
+      return res.status(400).json({ success: false, message: `Discount cannot exceed plan price (₹${plan.price})` });
+    }
+
     const latestSub = await prisma.subscription.findFirst({
       where: { tenantId },
       orderBy: { endDate: 'desc' }
@@ -427,7 +471,7 @@ const renewSubscription = async (req, res) => {
 
       // Create SaaS Payment Record (if not free trial)
       const { discount = 0, paymentMethod = 'CASH' } = req.body;
-      const finalAmount = Math.max(0, plan.price - parseFloat(discount));
+      const finalAmount = Math.max(0, plan.price - numDiscount);
 
       if (finalAmount > 0) {
         const saasPayment = await tx.saaSPayment.create({

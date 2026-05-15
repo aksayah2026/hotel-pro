@@ -10,7 +10,7 @@ export const BASE_URL = 'http://192.168.0.114:5000/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 45000, // Increased timeout for slower mobile connections
+  timeout: 30000, // Adjusted timeout as per Android network fix requirements
 });
 
 // Attach token to every request
