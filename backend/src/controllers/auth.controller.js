@@ -309,10 +309,11 @@ const deleteUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
     }
 
-    await prisma.user.delete({ 
-      where: { id }
-    });
-    res.json({ success: true, message: 'User permanently deleted' });
+    await prisma.$transaction([
+      prisma.pushToken.deleteMany({ where: { userId: id } }),
+      prisma.user.delete({ where: { id } })
+    ]);
+    res.json({ success: true, message: 'User permanently deleted and tokens invalidated' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -18,13 +18,31 @@ const authenticate = async (req, res, next) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach user and tenant info to request directly from token
+    // Verify existence in DB to handle deletions instantly
+    const dbUser = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: { tenant: true }
+    });
+
+    if (!dbUser || !dbUser.isActive) {
+      return res.status(401).json({ success: false, message: 'Session expired. Please login again.' });
+    }
+
+    // If staff/tenant admin, check tenant existence
+    if (dbUser.tenantId && (!dbUser.tenant || !dbUser.tenant.isActive)) {
+      return res.status(401).json({ success: false, message: 'Session expired. Business account inactive or deleted.' });
+    }
+
+    // Attach user and tenant info to request
     req.user = {
-      id: decoded.userId,
-      role: decoded.role,
-      name: decoded.userName,
-      tenantId: decoded.tenantId,
-      tenant: { accessLevel: decoded.accessLevel },
+      id: dbUser.id,
+      role: dbUser.role,
+      name: dbUser.name,
+      tenantId: dbUser.tenantId,
+      tenant: { 
+        accessLevel: dbUser.tenant?.accessLevel || 'FULL',
+        isBlocked: dbUser.tenant?.isBlocked || false
+      },
       subscriptionStatus: decoded.subscriptionStatus,
       subscriptionEndDate: decoded.subscriptionEndDate
     };

@@ -47,7 +47,8 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // Clear token and redirect to login
       localStorage.removeItem('token');
-      // window.location.href = '/'; // Avoid forced reload if possible
+      localStorage.removeItem('user');
+      window.location.href = '/'; 
     }
     return Promise.reject(error);
   }
