@@ -4,7 +4,7 @@ import {
   RefreshControl, StatusBar, Alert, Modal, TextInput, ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { Calendar, Plus, LogIn, XCircle, CreditCard, LogOut, Eye, Phone, User, Search, Filter, X } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { bookingService, Booking } from '../../services/bookingService';
@@ -22,14 +22,15 @@ export default function BookingsScreen() {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const insets = useSafeAreaInsets();
 
   const [bookings,  setBookings]  = useState<Booking[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -88,6 +89,17 @@ export default function BookingsScreen() {
     fetchBookings(1, false);
   }, [activeFilter, debouncedSearch, checkInFrom, checkOutTo]);
 
+  // Handle incoming navigation params (Quick Actions)
+  useEffect(() => {
+    if (route.params?.activeTab) {
+      setLoading(true);
+      setBookings([]);
+      setActiveFilter(route.params.activeTab);
+      // Clear params to prevent re-triggering if we navigate back later
+      navigation.setParams({ activeTab: undefined });
+    }
+  }, [route.params?.activeTab]);
+
   useFocusEffect(
     useCallback(() => {
       // Refresh visible page on focus
@@ -112,39 +124,51 @@ export default function BookingsScreen() {
     return t.getTime() === c.getTime();
   };
 
-  const handleQuickCheckIn = (id: string, checkInDate: string) => {
+  const handleQuickCheckIn = (item: Booking, id: string, checkInDate: string) => {
     if (!isToday(checkInDate)) {
       Alert.alert('Not Allowed', 'Check-in is only possible on the check-in date.');
       return;
     }
-    Alert.alert('Check-In Guest', 'Are you sure you want to check-in this guest?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Yes, Check-In', onPress: async () => {
-         try {
-           setActionLoading(true);
-           await bookingService.checkIn(id);
-           fetchBookings();
-         } catch (e: any) {
-           Alert.alert('Error', e?.response?.data?.message || 'Check-in failed');
-         } finally {
-           setActionLoading(false);
-         }
-      }}
-    ]);
+
+    const roomNum = item.room?.roomNumber || item.bookingRooms?.[0]?.room?.roomNumber || 'N/A';
+    
+    Alert.alert(
+      'Confirm Check-In', 
+      `Are you sure you want to check-in guest "${item.customer?.name}" for Room ${roomNum}?`, 
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Confirm Check-In', 
+          onPress: async () => {
+            try {
+              setProcessingId(id);
+              await bookingService.checkIn(id);
+              Alert.alert('Success', 'Guest checked in successfully');
+              fetchBookings();
+            } catch (e: any) {
+              Alert.alert('Error', e?.response?.data?.message || 'Check-in failed');
+            } finally {
+              setProcessingId(null);
+            }
+          }
+        }
+      ]
+    );
   };
 
-  const handleQuickCancel = (id: string) => {
-    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [
+  const handleQuickCancel = (id: string, name: string) => {
+    Alert.alert('Cancel Booking', `Are you sure you want to cancel booking for "${name}"?`, [
       { text: 'No', style: 'cancel' },
       { text: 'Yes, Cancel', style: 'destructive', onPress: async () => {
          try {
-           setActionLoading(true);
+           setProcessingId(id);
            await bookingService.cancel(id);
+           Alert.alert('Success', 'Booking cancelled successfully');
            fetchBookings();
          } catch (e) {
            Alert.alert('Error', 'Failed to cancel booking');
          } finally {
-           setActionLoading(false);
+           setProcessingId(null);
          }
       }}
     ]);
@@ -243,18 +267,26 @@ export default function BookingsScreen() {
             {item.status === 'BOOKED' && (
               <>
                 <TouchableOpacity
-                  onPress={() => handleQuickCancel(item.id)}
+                  onPress={() => handleQuickCancel(item.id, item.customer?.name || 'Guest')}
+                  disabled={!!processingId}
                   style={{ flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.xs, borderRightWidth: 1, borderRightColor: colors.divider }}
                 >
                    <XCircle size={16} color={colors.error} />
                    <Text style={{ fontSize: fontSize.sm, color: colors.error, fontWeight: fontWeight.semiBold as any }}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handleQuickCheckIn(item.id, item.checkInDate)}
+                  onPress={() => handleQuickCheckIn(item, item.id, item.checkInDate)}
+                  disabled={!!processingId}
                   style={{ flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.xs, backgroundColor: colors.primaryLight }}
                 >
-                   <LogIn size={16} color={colors.primary} />
-                   <Text style={{ fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semiBold as any }}>Check-In</Text>
+                   {processingId === item.id ? (
+                     <ActivityIndicator size="small" color={colors.primary} />
+                   ) : (
+                     <>
+                       <LogIn size={16} color={colors.primary} />
+                       <Text style={{ fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semiBold as any }}>Check-In</Text>
+                     </>
+                   )}
                 </TouchableOpacity>
               </>
             )}
@@ -351,7 +383,11 @@ export default function BookingsScreen() {
             const active = activeFilter === item;
             return (
               <TouchableOpacity
-                onPress={() => setActiveFilter(item)}
+                onPress={() => {
+                  setLoading(true);
+                  setBookings([]);
+                  setActiveFilter(item);
+                }}
                 style={{
                   paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
                   borderRadius: radius.full,
@@ -370,8 +406,8 @@ export default function BookingsScreen() {
         />
       </View>
 
-      {loading || actionLoading ? (
-         <Loading message="Processing..." />
+      {loading ? (
+         <Loading message="Syncing bookings..." />
       ) : (
         <FlatList
           data={bookings}
@@ -389,8 +425,16 @@ export default function BookingsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Calendar size={56} color={colors.textMuted} />}
-              title="No bookings"
-              message="No bookings found. Tap the plus button to create one."
+              title={
+                activeFilter === 'BOOKED' ? "No Bookings Ready for Check-In" :
+                activeFilter === 'CHECKED_IN' ? "No Bookings Eligible for Check-Out" :
+                "No bookings"
+              }
+              message={
+                activeFilter === 'BOOKED' ? "All upcoming guests have either checked in or cancelled." :
+                activeFilter === 'CHECKED_IN' ? "There are no active guests currently checked in." :
+                "No bookings found matching your criteria."
+              }
             />
           }
         />

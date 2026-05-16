@@ -60,7 +60,7 @@ export default function ConfigScreen() {
   };
 
   const handleDeleteType = (id: string, name: string) => {
-    Alert.alert('Delete', `Delete "${name}"?`, [
+    Alert.alert('Delete', `Are you sure you want to delete "${name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -95,7 +95,7 @@ export default function ConfigScreen() {
   };
 
   const handleDeleteAmenity = (id: string, name: string) => {
-    Alert.alert('Delete', `Delete "${name}"?`, [
+    Alert.alert('Delete', `Are you sure you want to delete "${name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {

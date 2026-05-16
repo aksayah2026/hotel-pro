@@ -65,10 +65,6 @@ model Tenant {
   mobile         String   @unique
   password       String
 
-  isDeleted      Boolean  @default(false)
-  deletedAt      DateTime?
-  deleteReason   String?
-
   isActive       Boolean  @default(true)
   isBlocked      Boolean  @default(false)
   accessLevel    AccessLevel @default(FULL)
@@ -91,7 +87,6 @@ model Tenant {
   pushTokens     PushToken[]
   notifications  Notification[]
 
-  @@index([isDeleted])
   @@index([isActive])
   @@index([createdAt])
   @@map("tenants")
@@ -155,9 +150,6 @@ model User {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   isActive  Boolean  @default(true)
-  isDeleted Boolean  @default(false)
-  deletedAt DateTime?
-  deleteReason String?
   lastLoginAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,7 +160,6 @@ model User {
   notifications Notification[]
 
   @@index([tenantId])
-  @@index([isDeleted])
   @@index([mobile])
   @@map("users")
 }

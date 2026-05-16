@@ -132,8 +132,8 @@ const createRoom = async (req, res) => {
 
     const existing = await prisma.room.findFirst({ 
         where: { 
-            roomNumber,
-            tenantId: req.user.tenantId 
+            roomNumber: cleanRoomNumber,
+            tenantId: req.user.tenantId
         } 
     });
     if (existing) {
@@ -189,6 +189,19 @@ const updateRoom = async (req, res) => {
     // Verify ownership
     const existing = await prisma.room.findFirst({ where: { id: req.params.id, tenantId: req.user.tenantId } });
     if (!existing) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    // Validate room number uniqueness if changed
+    if (roomNumber !== undefined && roomNumber.toString().trim() !== existing.roomNumber) {
+        const duplicate = await prisma.room.findFirst({
+            where: {
+                roomNumber: roomNumber.toString().trim(),
+                tenantId: req.user.tenantId
+            }
+        });
+        if (duplicate) {
+            return res.status(409).json({ success: false, message: 'Another room with this number already exists' });
+        }
+    }
 
     const room = await prisma.room.update({
       where: { id: req.params.id },
@@ -322,14 +335,10 @@ const updateRoomStatus = async (req, res) => {
 // DELETE /api/rooms/:id
 const deleteRoom = async (req, res) => {
   try {
-    const existing = await prisma.room.findFirst({ where: { id: req.params.id, tenantId: req.user.tenantId } });
-    if (!existing) return res.status(403).json({ success: false, message: 'Unauthorized' });
-
-    await prisma.room.update({
-      where: { id: req.params.id },
-      data: { isActive: false },
+    await prisma.room.delete({
+      where: { id: req.params.id }
     });
-    res.json({ success: true, message: 'Room deactivated successfully' });
+    res.json({ success: true, message: 'Room permanently deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

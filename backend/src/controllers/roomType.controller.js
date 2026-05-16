@@ -35,6 +35,9 @@ const createRoomType = async (req, res) => {
     if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
 
     const trimmedName = name.trim();
+    if (!trimmedName || !/^[a-zA-Z0-9\s]+$/.test(trimmedName)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid room type name (alphanumeric only).' });
+    }
 
     const existing = await prisma.roomType.findUnique({
       where: {

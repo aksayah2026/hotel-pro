@@ -50,15 +50,9 @@ const AppInner = () => {
       
       const data = response.notification.request.content.data;
       if (data && navigationRef.isReady()) {
-        // Automatically navigate to Booking Details if bookingId is attached, otherwise to Notification Center
-        if (data.bookingId) {
-          (navigationRef as any).navigate('App', {
-            screen: 'BookingDetail',
-            params: { id: data.bookingId }
-          });
-        } else {
-          (navigationRef as any).navigate('App', { screen: 'Notification' });
-        }
+        // INFORMATIONAL ONLY: We only navigate to the Notification center list
+        // Deep linking to specific booking/room details is now disabled per business requirement.
+        navigationRef.navigate('App', { screen: 'Notification' } as never);
       }
     });
 

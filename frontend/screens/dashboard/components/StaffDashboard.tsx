@@ -23,8 +23,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
   const quickActions = [
     { label: 'New Booking', icon: PlusCircle, color: colors.primary, screen: 'SelectDates' },
-    { label: 'Check-in', icon: LogIn, color: colors.success, screen: 'Bookings', params: { type: 'pending' } },
-    { label: 'Check-out', icon: LogOut, color: '#FF9900', screen: 'Bookings', params: { type: 'active' } },
+    { label: 'Check-in', icon: LogIn, color: colors.success, screen: 'Bookings', params: { activeTab: 'BOOKED' } },
+    { label: 'Check-out', icon: LogOut, color: '#FF9900', screen: 'Bookings', params: { activeTab: 'CHECKED_IN' } },
     { label: 'Mark Cleaning', icon: Brush, color: colors.warning, screen: 'Rooms' },
   ];
 

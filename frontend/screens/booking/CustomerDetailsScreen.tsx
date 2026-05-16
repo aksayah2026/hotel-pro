@@ -34,7 +34,7 @@ export default function CustomerDetailsScreen() {
   const [aadhaarImageUri, setAadhaarImageUri] = useState<string | null>(null);
   const [aadhaarUrl,      setAadhaarUrl]      = useState<string | null>(null);
   const [uploadingAadhaar, setUploadingAadhaar] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [validating, setValidating] = useState(false);
 
   if (!rooms || !checkIn || !checkOut || !nights) {
@@ -57,7 +57,7 @@ export default function CustomerDetailsScreen() {
 
   // Real-time validation while typing
   useEffect(() => {
-    const e: Record<string, string> = {};
+    const e: Record<string, string | undefined> = {};
     
     if (form.name !== '') {
       const trimmed = form.name.trim();
@@ -165,7 +165,7 @@ export default function CustomerDetailsScreen() {
   };
 
   const validate = () => {
-    const e: Record<string, string> = {};
+    const e: Record<string, string | undefined> = {};
     const trimmedName = form.name.trim();
     
     if (!trimmedName || !/^[a-zA-Z\s]+$/.test(trimmedName)) {

@@ -40,9 +40,6 @@ const login = async (req, res) => {
     }
 
     if (user.tenant) {
-      if (user.tenant.isDeleted) {
-        return res.status(403).json({ success: false, message: 'Your business account has been deleted. Please contact support.' });
-      }
       if (!user.tenant.isActive) {
         return res.status(403).json({ success: false, message: 'Your business account is currently inactive. Please contact Super Admin.' });
       }
@@ -146,7 +143,7 @@ const getProfile = async (req, res) => {
       include: { tenant: true }
     });
 
-    if (!dbUser || dbUser.isDeleted) {
+    if (!dbUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
@@ -204,7 +201,7 @@ const createUser = async (req, res) => {
 
 
     const existing = await prisma.user.findFirst({ 
-      where: { mobile: cleanMobile, isDeleted: false } 
+      where: { mobile: cleanMobile } 
     });
     if (existing) {
       return res.status(409).json({ success: false, message: 'Mobile number already registered' });
@@ -216,16 +213,18 @@ const createUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Staff limit reached (Max 5 users per hotel)' });
     }
 
+    // Role Protection: Tenant Admin can only create STAFF
+    const finalRole = req.user.role === 'SUPER_ADMIN' ? (role || 'STAFF') : 'STAFF';
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
       data: {
         name,
         mobile: cleanMobile,
         password: hashedPassword,
-        role: role || 'STAFF',
+        role: finalRole,
         tenantId,
-        isActive: true,
-        isDeleted: false
+        isActive: true
       },
       select: { id: true, name: true, mobile: true, role: true, createdAt: true },
     });
@@ -239,7 +238,7 @@ const createUser = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      where: { tenantId: req.user.tenantId, isDeleted: false },
+      where: { tenantId: req.user.tenantId },
       select: { id: true, name: true, mobile: true, role: true, isActive: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -256,10 +255,26 @@ const updateUser = async (req, res) => {
 
     // Verify ownership
     const targetUser = await prisma.user.findFirst({ 
-      where: { id, tenantId: req.user.tenantId, isDeleted: false } 
+      where: { id, tenantId: req.user.tenantId } 
     });
     if (!targetUser) {
         return res.status(403).json({ success: false, message: 'Unauthorized or user not found' });
+    }
+
+    // Security Check for TENANT_ADMIN: Only allow updating password for others
+    if (req.user.role === 'TENANT_ADMIN' && targetUser.id !== req.user.id) {
+      const isChangingRestricted = 
+        (name && name !== targetUser.name) || 
+        (mobile && mobile !== targetUser.mobile) || 
+        (role && role !== targetUser.role) || 
+        (isActive !== undefined && isActive !== targetUser.isActive);
+
+      if (isChangingRestricted) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "You are not authorized to update this field." 
+        });
+      }
     }
 
     const updateData = {
@@ -285,30 +300,19 @@ const updateUser = async (req, res) => {
   }
 };
 
+// DELETE /api/auth/users/:id
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const targetUser = await prisma.user.findUnique({ where: { id } });
-    if (!targetUser || targetUser.tenantId !== req.user.tenantId) {
-        return res.status(403).json({ success: false, message: 'Unauthorized' });
-    }
 
     if (id === req.user.id) {
       return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
     }
 
-    const suffix = `_del_${Date.now()}`;
-    await prisma.user.update({ 
-      where: { id },
-      data: { 
-        isActive: false, 
-        isDeleted: true,
-        deletedAt: new Date(),
-        mobile: targetUser.mobile + suffix
-      }
+    await prisma.user.delete({ 
+      where: { id }
     });
-    res.json({ success: true, message: 'User deleted successfully (soft-delete)' });
+    res.json({ success: true, message: 'User permanently deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

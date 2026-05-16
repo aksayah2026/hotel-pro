@@ -312,10 +312,23 @@ export default function BookingDetailScreen() {
           <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, marginBottom: spacing.md }}>
             Booking Details
           </Text>
-          <SummaryRow label="Check-In"  value={formatDate(booking.checkInDate)} />
-          <SummaryRow label="Check-Out" value={formatDate(booking.checkOutDate)} />
-          {booking.actualCheckIn  && <SummaryRow label="Actual Check-In"  value={formatDateTimeIST(booking.actualCheckIn)} />}
-          {booking.actualCheckOut && <SummaryRow label="Actual Check-Out" value={formatDateTimeIST(booking.actualCheckOut)} />}
+          {booking.status === 'CANCELLED' ? (
+            <View style={{ backgroundColor: colors.errorBg, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.md }}>
+              <Text style={{ fontSize: fontSize.sm, color: colors.error, fontWeight: fontWeight.bold as any }}>
+                BOOKING CANCELLED
+              </Text>
+              <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 }}>
+                Cancelled on: {formatDateTimeIST(booking.updatedAt)}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <SummaryRow label="Check-In"  value={formatDate(booking.checkInDate)} />
+              <SummaryRow label="Check-Out" value={formatDate(booking.checkOutDate)} />
+              {booking.actualCheckIn  && <SummaryRow label="Actual Check-In"  value={formatDateTimeIST(booking.actualCheckIn)} />}
+              {booking.actualCheckOut && <SummaryRow label="Actual Check-Out" value={formatDateTimeIST(booking.actualCheckOut)} />}
+            </>
+          )}
         </Card>
 
         {/* Customer */}
@@ -326,7 +339,7 @@ export default function BookingDetailScreen() {
               <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Customer</Text>
             </View>
             <SummaryRow label="Name"   value={booking.customer.name} />
-            <SummaryRow label="Mobile" value={booking.customer.mobile} />
+            <SummaryRow label="Mobile Number" value={booking.customer.mobile} />
             {booking.customer.email   && <SummaryRow label="Email"   value={booking.customer.email} />}
             {booking.customer.address && <SummaryRow label="Address" value={booking.customer.address} />}
             

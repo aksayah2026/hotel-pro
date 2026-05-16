@@ -105,7 +105,7 @@ export default function CreateTenant() {
                   { min: 2, message: 'Owner name must be at least 2 characters' }
                 ]}
               >
-                <Input placeholder="e.g. John Doe" size="large" />
+                <Input placeholder="User Name" size="large" />
               </Form.Item>
             </Col>
           </Row>

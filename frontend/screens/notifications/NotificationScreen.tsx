@@ -133,7 +133,6 @@ export default function NotificationScreen() {
         activeOpacity={0.85}
         onPress={() => {
           if (isUnread) handleMarkAsRead(item.id);
-          navigation.navigate('Main', { screen: 'Bookings' });
         }}
       >
         <Card

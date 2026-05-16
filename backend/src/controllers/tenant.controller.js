@@ -79,7 +79,7 @@ const createTenant = async (req, res) => {
     }
 
     const existingUser = await prisma.user.findFirst({
-      where: { mobile: cleanMobile, isDeleted: false }
+      where: { mobile: cleanMobile }
     });
     if (existingUser) {
       return res.status(409).json({ success: false, message: 'Mobile number already in use' });
@@ -121,8 +121,7 @@ const createTenant = async (req, res) => {
           password: hashedPassword,
           role: 'TENANT_ADMIN',
           tenantId: tenant.id,
-          isActive: true,
-          isDeleted: false
+          isActive: true
         },
       });
 
@@ -196,7 +195,7 @@ const getAllTenants = async (req, res) => {
     const take = parseInt(limit);
     const now = new Date();
 
-    const where = { isDeleted: false, AND: [] };
+    const where = { AND: [] };
 
     if (search) {
       where.AND.push({
@@ -289,7 +288,7 @@ const getTenantById = async (req, res) => {
   try {
     const { id } = req.params;
     const tenant = await prisma.tenant.findUnique({
-      where: { id, isDeleted: false },
+      where: { id },
       select: {
         id: true,
         businessName: true,
@@ -329,7 +328,6 @@ const getTenantById = async (req, res) => {
 const getTenantActivity = async (req, res) => {
   try {
     const tenants = await prisma.tenant.findMany({
-      where: { isDeleted: false },
       select: {
         id: true,
         businessName: true,
@@ -386,8 +384,7 @@ const updateTenant = async (req, res) => {
       const existingUser = await prisma.user.findFirst({
         where: { 
           mobile: cleanMobile, 
-          tenantId: { not: id },
-          isDeleted: false
+          tenantId: { not: id }
         }
       });
       if (existingUser) {
@@ -510,56 +507,135 @@ const renewSubscription = async (req, res) => {
   }
 };
 
-// DELETE /api/tenants/:id
+// DELETE /api/tenants/:id (Hard Delete with Backup)
 const deleteTenant = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
+    const { confirmation } = req.body;
 
-    const tenant = await prisma.tenant.findUnique({ where: { id } });
-    if (!tenant) return res.status(404).json({ success: false, message: 'Tenant not found' });
-
-    const suffix = `_del_${Date.now()}`;
-
-    await prisma.$transaction([
-      prisma.tenant.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          isActive: false,
-          deletedAt: new Date(),
-          deleteReason: reason,
-          mobile: tenant.mobile + suffix
-        }
-      }),
-      prisma.user.updateMany({
-        where: { tenantId: id },
-        data: {
-          isDeleted: true,
-          isActive: false,
-          deletedAt: new Date(),
-          deleteReason: `Tenant deleted: ${reason}`,
-          // We can't easily suffix mobile here with updateMany in Prisma without raw SQL
-          // But we can find all users and update them individually or just leave them
-          // Since tenantId is scoped, it's less of an issue, but let's be thorough
-        }
-      })
-    ]);
-
-    // To properly suffix all users, we should do it in a loop or raw query
-    const users = await prisma.user.findMany({ where: { tenantId: id } });
-    for (const user of users) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { mobile: user.mobile + suffix }
-      });
+    if (confirmation !== 'DELETE TENANT') {
+      return res.status(400).json({ success: false, message: 'Permanent deletion requires typed confirmation: DELETE TENANT' });
     }
 
-    await logAction(req.user.id, 'DELETE_TENANT', 'TENANT', id, { reason }, id);
+    // STEP 1: Fetch data outside transaction for backup
+    const tenant = await prisma.tenant.findUnique({ 
+        where: { id },
+        include: {
+            users: true,
+            rooms: { include: { amenities: true } },
+            roomTypes: true,
+            amenities: true,
+            bookings: {
+                include: {
+                    bookingRooms: true,
+                    customer: true,
+                    payments: true,
+                    extraCharges: true
+                }
+            },
+            subscriptions: true,
+            saasPayments: true,
+            saasInvoices: true,
+            pushTokens: true,
+            notifications: true
+        }
+    });
 
-    res.json({ success: true, message: 'Tenant deleted successfully' });
+    if (!tenant) return res.status(404).json({ success: false, message: 'Tenant not found' });
+
+    // Generate Backup Data (JSON)
+    const backupData = {
+        tenantInfo: {
+            id: tenant.id,
+            businessName: tenant.businessName,
+            ownerName: tenant.ownerName,
+            mobile: tenant.mobile,
+            address: tenant.address,
+            phoneNumber: tenant.phoneNumber,
+            createdAt: tenant.createdAt,
+            totalBookings: tenant.totalBookings
+        },
+        exportTimestamp: new Date().toISOString(),
+        data: {
+            users: tenant.users.map(u => ({ ...u, password: '***' })),
+            rooms: tenant.rooms,
+            roomTypes: tenant.roomTypes,
+            amenities: tenant.amenities,
+            bookings: tenant.bookings,
+            subscriptions: tenant.subscriptions,
+            saasPayments: tenant.saasPayments,
+            saasInvoices: tenant.saasInvoices,
+            pushTokens: tenant.pushTokens,
+            notifications: tenant.notifications
+        }
+    };
+
+    // STEP 2: Optional: Storage cleanup or Cloudinary removal should happen here (outside tx)
+    // ...
+
+    // STEP 3: Run optimized DB transaction with explicit timeout
+    await prisma.$transaction(async (tx) => {
+        // Debug Prisma model keys if error persists
+        // console.log('Prisma Transaction Models:', Object.keys(tx));
+
+        // Correct dependency order (Children first)
+        
+        // 1. Independent child records (to avoid foreign key issues elsewhere)
+        await tx.notification.deleteMany({ where: { tenantId: id } });
+        await tx.auditLog.deleteMany({ where: { tenantId: id } });
+        await tx.pushToken.deleteMany({ where: { tenantId: id } });
+
+        // 2. Booking Children (Cascading from Booking)
+        await tx.customer.deleteMany({ where: { booking: { tenantId: id } } });
+        await tx.payment.deleteMany({ where: { booking: { tenantId: id } } });
+        await tx.extraCharge.deleteMany({ where: { booking: { tenantId: id } } });
+        await tx.bookingRoom.deleteMany({ where: { booking: { tenantId: id } } });
+        
+        // 3. Main Booking records
+        await tx.booking.deleteMany({ where: { tenantId: id } });
+        
+        // 4. Room & Config
+        await tx.room.deleteMany({ where: { tenantId: id } });
+        await tx.roomType.deleteMany({ where: { tenantId: id } });
+        await tx.amenity.deleteMany({ where: { tenantId: id } });
+        
+        // 5. Subscription & SaaS
+        await tx.saaSInvoice.deleteMany({ where: { tenantId: id } });
+        await tx.saaSPayment.deleteMany({ where: { tenantId: id } });
+        await tx.subscription.deleteMany({ where: { tenantId: id } });
+        
+        // 6. Users (Staff)
+        await tx.user.deleteMany({ where: { tenantId: id } });
+        
+        // 7. Persistent Deletion Log
+        await tx.tenantDeletionLog.create({
+            data: {
+                tenantId: id,
+                tenantName: tenant.businessName,
+                reason: 'PERMANENT HARD DELETE',
+                deletedBy: req.user.userName || 'SUPER_ADMIN'
+            }
+        });
+
+        // 8. Finally delete the tenant record
+        await tx.tenant.delete({ where: { id } });
+    }, {
+        maxWait: 5000, 
+        timeout: 25000 // 25 seconds for large data sets
+    });
+
+    res.json({
+        success: true,
+        message: 'Tenant and all associated data permanently deleted.',
+        backup: backupData
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('CRITICAL: Tenant deletion failed', error);
+    res.status(500).json({ 
+        success: false, 
+        message: 'Tenant deletion failed. Please try again.' 
+    });
   }
 };
 

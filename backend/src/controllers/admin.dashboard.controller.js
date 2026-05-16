@@ -47,7 +47,6 @@ async function getSuperAdminStatsData(queryParams) {
         id: true,
         businessName: true,
         isActive: true,
-        isDeleted: true,
         createdAt: true,
         subscriptions: {
           orderBy: { endDate: 'desc' },
@@ -79,34 +78,30 @@ async function getSuperAdminStatsData(queryParams) {
     })
   ]);
 
-  // Separate non-deleted cohort for standard metrics computations
-  const nonDeletedTenants = tenants.filter(t => !t.isDeleted);
-
   // 1. Total Businesses: created strictly within range [startDate, endDate)
-  const filteredCreatedTenants = nonDeletedTenants.filter(t => {
+  const filteredCreatedTenants = tenants.filter(t => {
     const cDate = new Date(t.createdAt);
     return cDate >= startDate && cDate < endDate;
   });
   const totalTenants = filteredCreatedTenants.length;
-
+  
   // 2. Active Licenses: licenses active during selected date range
-  const activeTenantsCount = nonDeletedTenants.filter(t => {
+  const activeTenantsCount = tenants.filter(t => {
     return t.subscriptions.some(sub => {
       const sDate = new Date(sub.startDate);
       const eDate = new Date(sub.endDate);
       return sDate < endDate && eDate >= startDate && sub.status === 'ACTIVE';
     });
   }).length;
-
+  
   // 3. Inactive / Expired Licenses:
-  const inactiveTenantsCount = nonDeletedTenants.filter(t => {
+  const inactiveTenantsCount = tenants.filter(t => {
     const hasExpiredInRange = t.subscriptions.some(sub => {
       const eDate = new Date(sub.endDate);
       return eDate >= startDate && eDate < endDate && sub.status !== 'ACTIVE';
     });
     
     const cDate = new Date(t.createdAt);
-    // Account was created before or during period AND is currently inactive
     const isInactiveAndExisted = !t.isActive && cDate < endDate;
     
     return hasExpiredInRange || isInactiveAndExisted;
@@ -142,7 +137,6 @@ async function getSuperAdminStatsData(queryParams) {
   // We map EVERY tenant in the DB to its original name and deletion boolean
   const tenantMap = new Map(tenants.map(t => [t.id, { 
     businessName: t.businessName, 
-    isDeleted: t.isDeleted,
     createdAt: t.createdAt,
     plan: t.subscriptions[0]?.plan?.name || 'N/A'
   }]));
@@ -154,7 +148,6 @@ async function getSuperAdminStatsData(queryParams) {
       name: nameVal,
       businessName: nameVal,
       revenue: item._sum.amount || 0,
-      isDeleted: mapped ? mapped.isDeleted : true,
       createdAt: mapped ? mapped.createdAt : new Date(),
       plan: mapped ? mapped.plan : 'N/A'
     };
@@ -174,7 +167,7 @@ async function getSuperAdminStatsData(queryParams) {
   // Expiring soon (Actionable - relative to real live timestamp)
   const nextWeek = new Date();
   nextWeek.setDate(now.getDate() + 7);
-  const expiringSoon = nonDeletedTenants.filter(t => {
+  const expiringSoon = tenants.filter(t => {
     return t.subscriptions.some(sub => {
       const eDate = new Date(sub.endDate);
       return eDate >= now && eDate <= nextWeek;
@@ -311,7 +304,7 @@ const exportSuperAdminStats = async (req, res) => {
     // I'll re-fetch the full list here or just use the filteredTenantRevenue if I modify the helper
     // Actually, I'll just use the full list I'll add to the data object.
     (data.fullTenantWise || data.tenantWise).forEach(row => {
-      csvContent += `"${row.businessName}","${Number(row.revenue).toFixed(2)}","${row.plan || 'N/A'}","${row.isDeleted ? 'Archived' : 'Active'}","${new Date(row.createdAt).toLocaleDateString()}"\r\n`;
+      csvContent += `"${row.businessName}","${Number(row.revenue).toFixed(2)}","${row.plan || 'N/A'}","${row.isActive ? 'Active' : 'Inactive'}","${new Date(row.createdAt).toLocaleDateString()}"\r\n`;
     });
 
     // Set standard headers for dynamic file downloads
@@ -379,7 +372,6 @@ const getTenantRevenueBreakdown = async (req, res) => {
         t.id, 
         t."businessName", 
         t."isActive", 
-        t."isDeleted", 
         t."createdAt",
         COALESCE(SUM(p.amount), 0) as revenue,
         (SELECT sp.name 

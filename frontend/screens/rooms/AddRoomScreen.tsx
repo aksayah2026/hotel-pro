@@ -42,6 +42,17 @@ export default function AddRoomScreen() {
   const [loading, setLoading] = useState(false);
   const [fetchingOptions, setFetchingOptions] = useState(true);
 
+  // Dirty check
+  const isDirty = isEdit && (
+    form.roomNumber !== (existingRoom?.roomNumber ?? '') ||
+    form.type !== (existingRoom?.typeId ?? '') ||
+    form.floor !== String(existingRoom?.floor ?? '') ||
+    form.capacity !== String(existingRoom?.capacity ?? '') ||
+    form.baseTariff !== String(existingRoom?.baseTariff ?? '') ||
+    form.description !== (existingRoom?.description ?? '') ||
+    JSON.stringify(selectedAmenities.sort()) !== JSON.stringify((existingRoom?.amenities?.map(a => a.id) ?? []).sort())
+  );
+
   const fetchOptions = async () => {
     try {
       const [typesRes, amenitiesRes] = await Promise.all([
@@ -267,7 +278,7 @@ export default function AddRoomScreen() {
           loading={loading} 
           fullWidth 
           size="lg" 
-          disabled={roomTypes.length === 0 && !isEdit}
+          disabled={(roomTypes.length === 0 && !isEdit) || (isEdit && !isDirty)}
         />
         <View style={{ height: spacing.xl * 4 }} />
       </ScrollView>

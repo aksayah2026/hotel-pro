@@ -31,11 +31,17 @@ export default function AvailableRoomsScreen() {
   const isFocused = useIsFocused();
   const [validating, setValidating] = useState(false);
 
+  const [totalRooms, setTotalRooms] = useState<number | null>(null);
+
   const fetchRooms = async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
-      const res = await roomService.getAvailable(checkIn, checkOut);
-      setRooms(res.data.data);
+      const [availRes, allRes] = await Promise.all([
+        roomService.getAvailable(checkIn, checkOut),
+        roomService.getAll()
+      ]);
+      setRooms(availRes.data.data);
+      setTotalRooms(allRes.data.data.length);
     } catch {
       Alert.alert('Error', 'Failed to fetch available rooms');
     } finally {
@@ -197,11 +203,42 @@ export default function AvailableRoomsScreen() {
           ) : null
         }
         ListEmptyComponent={
-          <EmptyState
-            icon={<BedDouble size={56} color={colors.textMuted} />}
-            title="No rooms available"
-            message="All rooms are booked for the selected dates. Please try different dates."
-          />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: spacing['3xl'] }}>
+            <Card style={{ width: '100%', paddingVertical: spacing['3xl'], paddingHorizontal: spacing.xl, alignItems: 'center', backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.divider }}>
+              <EmptyState
+                icon={<BedDouble size={64} color={colors.textMuted} strokeWidth={1} style={{ opacity: 0.6 }} />}
+                title={totalRooms === 0 ? "No Rooms Available" : "Fully Booked"}
+                message={totalRooms === 0 
+                  ? "Rooms have not been created yet. Please create rooms in Room Management before proceeding with bookings."
+                  : "All rooms are booked for the selected dates. Please try different dates."
+                }
+                action={
+                  <View style={{ marginTop: spacing.xl, width: '100%', gap: spacing.md }}>
+                    {totalRooms === 0 ? (
+                      <>
+                        <Button 
+                          label="Create Room" 
+                          onPress={() => navigation.navigate('AddRoom')}
+                          fullWidth
+                          size="lg"
+                        />
+                        <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs }}>
+                          You can create rooms from the Room Management section anytime.
+                        </Text>
+                      </>
+                    ) : (
+                      <Button 
+                        label="Change Search Dates" 
+                        onPress={() => navigation.goBack()} 
+                        variant="secondary"
+                        fullWidth
+                      />
+                    )}
+                  </View>
+                }
+              />
+            </Card>
+          </View>
         }
       />
 

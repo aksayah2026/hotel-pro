@@ -137,7 +137,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
           <View>
             <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Room Status</Text>
-            <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Real-time inventory</Text>
+            <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Real-time Inventory</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ fontSize: fontSize['2xl'], fontWeight: fontWeight.extraBold as any, color: colors.primary }}>{occupancyRate}%</Text>

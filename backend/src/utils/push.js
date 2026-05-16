@@ -112,7 +112,7 @@ const sendPushNotification = async (userIds, title, message, type, data = {}) =>
 const sendTenantBulkNotification = async (tenantId, title, message, type, data = {}) => {
   try {
     const users = await prisma.user.findMany({
-      where: { tenantId, isActive: true, isDeleted: false },
+      where: { tenantId, isActive: true },
       select: { id: true }
     });
     const userIds = users.map(u => u.id);
@@ -136,7 +136,7 @@ const sendTenantAdminNotification = async (tenantId, createdByUserId, title, mes
   try {
     // 1. Find all active and non-deleted TENANT_ADMIN users for this tenant
     const admins = await prisma.user.findMany({
-      where: { tenantId, role: 'TENANT_ADMIN', isActive: true, isDeleted: false },
+      where: { tenantId, role: 'TENANT_ADMIN', isActive: true },
       select: { id: true }
     });
     
@@ -219,7 +219,6 @@ const sendAdminNotification = async (tenantId, actorUserId, title, message, type
         tenantId,
         role: 'TENANT_ADMIN',
         isActive: true,
-        isDeleted: false,
         id: { not: actorUserId }
       },
       select: { id: true }
@@ -244,7 +243,6 @@ const sendStaffNotification = async (tenantId, actorUserId, title, message, type
         tenantId,
         role: 'STAFF',
         isActive: true,
-        isDeleted: false,
         id: { not: actorUserId }
       },
       select: { id: true }
@@ -264,11 +262,11 @@ const sendStaffNotification = async (tenantId, actorUserId, title, message, type
  * - Staff Performs Action -> Notify Admin
  */
 const sendSmartNotification = async (tenantId, actorUserId, actorRole, title, message, type, data = {}) => {
-  if (actorRole === 'TENANT_ADMIN') {
-    await sendStaffNotification(tenantId, actorUserId, title, message, type, data);
-  } else if (actorRole === 'STAFF') {
-    await sendAdminNotification(tenantId, actorUserId, title, message, type, data);
-  }
+  // Always notify both Admin and Staff (excluding the actor themselves)
+  await Promise.all([
+    sendAdminNotification(tenantId, actorUserId, title, message, type, data),
+    sendStaffNotification(tenantId, actorUserId, title, message, type, data)
+  ]);
 };
 
 module.exports = {

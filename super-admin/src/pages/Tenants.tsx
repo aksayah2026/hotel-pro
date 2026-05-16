@@ -223,10 +223,23 @@ export default function Tenants() {
   const onDelete = async (values) => {
     setSubmitLoading(true);
     try {
-      await api.delete(`/tenants/${selectedTenant.id}`, {
-        data: values
+      const res = await api.delete(`/tenants/${selectedTenant.id}`, {
+        data: { confirmation: values.confirmation }
       });
-      message.success('Tenant deleted successfully');
+      
+      // Handle Backup Download
+      const backupData = res.data.backup;
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tenant-backup-${selectedTenant.businessName}-${dayjs().format('YYYY-MM-DD')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      message.success('Tenant and all data permanently deleted. Backup downloaded.');
       setDeleteVisible(false);
       fetchTenants();
     } catch (err: any) {
@@ -349,7 +362,7 @@ export default function Tenants() {
                 </div>
               </Tooltip>
             ) : (
-              <Tooltip title="Delete Tenant">
+              <Tooltip title="PERMANENT DELETE (with Backup)">
                 <Button 
                   danger 
                   icon={<DeleteOutlined />} 
@@ -710,25 +723,32 @@ export default function Tenants() {
       </Modal>
       )}
 
-      {/* DELETE MODAL */}
+      {/* DELETE MODAL (PERMANENT) */}
       {deleteVisible && (
       <Modal
-        title={<span><ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: '8px' }} /> Delete Tenant</span>}
+        title={<span><ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: '8px' }} /> Permanent Hard Delete</span>}
         open={deleteVisible}
         onCancel={() => setDeleteVisible(false)}
         onOk={() => deleteForm.submit()}
         confirmLoading={submitLoading}
-        okText="Confirm Delete"
-        okButtonProps={{ danger: true }}
+        okText="Download Backup & Delete Forever"
+        okButtonProps={{ danger: true, type: 'primary' }}
+        width={500}
       >
         {selectedTenant && (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <div style={{ backgroundColor: '#fff2f0', border: '1px solid #ffccc7', padding: '12px', borderRadius: '8px' }}>
-              <Text type="danger" strong>Warning: Permanent Action</Text>
-              <br />
-              <Text type="secondary">
-                You are about to delete <Text strong>{selectedTenant.businessName}</Text>. 
-                This will deactivate all users and hide the business from the system.
+            <div style={{ backgroundColor: '#fff2f0', border: '1px solid #ffccc7', padding: '16px', borderRadius: '8px' }}>
+              <Title level={5} style={{ color: '#ff4d4f', margin: 0, marginBottom: '8px' }}>CRITICAL WARNING</Title>
+              <Text type="danger" strong>
+                You are about to PERMANENTLY delete all records for <Text underline>{selectedTenant.businessName}</Text>.
+              </Text>
+              <ul style={{ color: '#ff4d4f', marginTop: '12px', paddingLeft: '20px' }}>
+                <li>All Bookings, Rooms, and Staff data will be purged.</li>
+                <li>All Payment history and SaaS invoices will be gone.</li>
+                <li>This action CANNOT be undone.</li>
+              </ul>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                A complete data backup will be generated and downloaded to your computer automatically before deletion.
               </Text>
             </div>
             
@@ -738,14 +758,14 @@ export default function Tenants() {
               onFinish={onDelete}
             >
               <Form.Item 
-                name="reason" 
-                label="Reason for Deletion" 
+                name="confirmation" 
+                label={<span>To confirm, please type <Text code>DELETE TENANT</Text> below:</span>}
                 rules={[
-                  { required: true, message: 'Please provide a reason' },
-                  { min: 5, message: 'Reason must be at least 5 characters' }
+                  { required: true, message: 'Please type the confirmation text' },
+                  { pattern: /^DELETE TENANT$/, message: 'Text must exactly match "DELETE TENANT"' }
                 ]}
               >
-                <Input.TextArea placeholder="e.g. Business closed, Contract terminated..." rows={3} />
+                <Input placeholder="Type DELETE TENANT here" />
               </Form.Item>
             </Form>
           </Space>
