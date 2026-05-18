@@ -293,13 +293,15 @@ export default function BookingsScreen() {
 
             {item.status === 'CHECKED_IN' && (
               <>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('AddPayment', { bookingId: item.id, onRefresh: fetchBookings })}
-                  style={{ flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.xs, borderRightWidth: 1, borderRightColor: colors.divider }}
-                >
-                   <CreditCard size={16} color={colors.info} />
-                   <Text style={{ fontSize: fontSize.sm, color: colors.info, fontWeight: fontWeight.semiBold as any }}>Pay</Text>
-                </TouchableOpacity>
+                {balance > 0 && item.paymentStatus !== 'PAID' && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('AddPayment', { bookingId: item.id, onRefresh: fetchBookings })}
+                    style={{ flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.xs, borderRightWidth: 1, borderRightColor: colors.divider }}
+                  >
+                     <CreditCard size={16} color={colors.info} />
+                     <Text style={{ fontSize: fontSize.sm, color: colors.info, fontWeight: fontWeight.semiBold as any }}>Pay</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={() => navigation.navigate('CheckOut', { bookingId: item.id, onRefresh: fetchBookings })}
                   style={{ flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.xs }}
@@ -460,7 +462,7 @@ export default function BookingsScreen() {
         <Plus size={28} color={colors.textOnPrimary} />
       </TouchableOpacity>
 
-      {/* Filter Modal */}
+      {/* Filter Modal (Single Unified Instance to avoid nested modal conflicts) */}
       <Modal visible={showFilters} animationType="slide" transparent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ 
@@ -470,136 +472,144 @@ export default function BookingsScreen() {
             padding: spacing.lg, 
             paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl * 2) 
           }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-              <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Advanced Filters</Text>
-              <TouchableOpacity onPress={() => setShowFilters(false)}><X size={24} color={colors.textMuted} /></TouchableOpacity>
-            </View>
-            
-            <View style={{ gap: spacing.md, marginBottom: spacing.lg }}>
+            {pickerType === null ? (
+              // --- 1. ADVANCED FILTERS PANEL ---
               <View>
-                <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary, marginBottom: spacing.xs }}>Check-In After</Text>
-                <TouchableOpacity 
-                  onPress={() => setPickerType('in')}
-                  style={{ 
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-                    backgroundColor: colors.backgroundSecondary, borderRadius: radius.md, padding: spacing.md 
-                  }}
-                >
-                  <Calendar size={18} color={colors.primary} />
-                  <Text style={{ color: checkInFrom ? colors.textPrimary : colors.textMuted, fontSize: fontSize.base }}>
-                    {checkInFrom ? formatDate(checkInFrom) : 'Select Start Date'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View>
-                <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary, marginBottom: spacing.xs }}>Check-Out Before</Text>
-                <TouchableOpacity 
-                  onPress={() => setPickerType('out')}
-                  style={{ 
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-                    backgroundColor: colors.backgroundSecondary, borderRadius: radius.md, padding: spacing.md 
-                  }}
-                >
-                  <Calendar size={18} color={colors.primary} />
-                  <Text style={{ color: checkOutTo ? colors.textPrimary : colors.textMuted, fontSize: fontSize.base }}>
-                    {checkOutTo ? formatDate(checkOutTo) : 'Select End Date'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-              <TouchableOpacity onPress={clearFilters} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                <Text style={{ color: colors.textSecondary, fontWeight: fontWeight.bold as any }}>Clear All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowFilters(false)} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center' }}>
-                <Text style={{ color: colors.textOnPrimary, fontWeight: fontWeight.bold as any }}>Apply Filters</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Date Picker Multi-Modal */}
-      <Modal visible={pickerType !== null} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing.lg }}>
-          <Card style={{ padding: spacing.md, backgroundColor: colors.surface }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
-                Select {pickerType === 'in' ? 'Start' : 'End'} Date
-              </Text>
-              <TouchableOpacity onPress={() => setPickerType(null)}><X size={20} color={colors.textMuted} /></TouchableOpacity>
-            </View>
-
-            {/* Simple Month Navigator */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, backgroundColor: colors.backgroundSecondary, padding: spacing.sm, borderRadius: radius.md }}>
-              <TouchableOpacity onPress={() => setTempDate(new Date(tempDate.getFullYear(), tempDate.getMonth() - 1, 1))}>
-                <Text style={{ color: colors.primary, fontWeight: fontWeight.bold as any, padding: spacing.sm }}>Prev</Text>
-              </TouchableOpacity>
-              <Text style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
-                {MONTHS[tempDate.getMonth()]} {tempDate.getFullYear()}
-              </Text>
-              <TouchableOpacity onPress={() => setTempDate(new Date(tempDate.getFullYear(), tempDate.getMonth() + 1, 1))}>
-                <Text style={{ color: colors.primary, fontWeight: fontWeight.bold as any, padding: spacing.sm }}>Next</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ flexDirection: 'row', marginBottom: spacing.sm }}>
-              {WEEKDAYS.map(w => (
-                <View key={w} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold as any }}>{w}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+                  <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Advanced Filters</Text>
+                  <TouchableOpacity onPress={() => setShowFilters(false)}><X size={24} color={colors.textMuted} /></TouchableOpacity>
                 </View>
-              ))}
-            </View>
-
-            {/* Calendar Grid */}
-            <View>
-              {(() => {
-                const firstDay = new Date(tempDate.getFullYear(), tempDate.getMonth(), 1);
-                const lastDay = new Date(tempDate.getFullYear(), tempDate.getMonth() + 1, 0);
-                const offset = firstDay.getDay();
-                const days = Array.from({ length: lastDay.getDate() }, (_, i) => i + 1);
-                const cells = [...Array(offset).fill(null), ...days];
-                const rows = [];
-                for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
-
-                return rows.map((row, ri) => (
-                  <View key={ri} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                    {row.map((day, di) => {
-                      if (!day) return <View key={di} style={{ flex: 1 }} />;
-                      const dateStr = formatLocalDate(new Date(tempDate.getFullYear(), tempDate.getMonth(), day));
-                      const isSelected = (pickerType === 'in' ? checkInFrom : checkOutTo) === dateStr;
-                      
-                      return (
-                        <TouchableOpacity
-                          key={di}
-                          onPress={() => {
-                            if (pickerType === 'in') setCheckInFrom(dateStr);
-                            else setCheckOutTo(dateStr);
-                            setPickerType(null);
-                          }}
-                          style={{ 
-                            flex: 1, alignItems: 'center', paddingVertical: 8,
-                            backgroundColor: isSelected ? colors.primary : 'transparent',
-                            borderRadius: radius.md
-                          }}
-                        >
-                          <Text style={{ 
-                            fontSize: fontSize.sm, 
-                            color: isSelected ? colors.textOnPrimary : colors.textPrimary,
-                            fontWeight: isSelected ? fontWeight.bold as any : fontWeight.regular as any
-                          }}>
-                            {day}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                
+                <View style={{ gap: spacing.md, marginBottom: spacing.lg }}>
+                  <View>
+                    <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary, marginBottom: spacing.xs }}>Check-In After</Text>
+                    <TouchableOpacity 
+                      onPress={() => setPickerType('in')}
+                      style={{ 
+                        flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+                        backgroundColor: colors.backgroundSecondary, borderRadius: radius.md, padding: spacing.md 
+                      }}
+                    >
+                      <Calendar size={18} color={colors.primary} />
+                      <Text style={{ color: checkInFrom ? colors.textPrimary : colors.textMuted, fontSize: fontSize.base }}>
+                        {checkInFrom ? formatDate(checkInFrom) : 'Select Start Date'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                ));
-              })()}
-            </View>
-          </Card>
+
+                  <View>
+                    <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary, marginBottom: spacing.xs }}>Check-Out Before</Text>
+                    <TouchableOpacity 
+                      onPress={() => setPickerType('out')}
+                      style={{ 
+                        flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+                        backgroundColor: colors.backgroundSecondary, borderRadius: radius.md, padding: spacing.md 
+                      }}
+                    >
+                      <Calendar size={18} color={colors.primary} />
+                      <Text style={{ color: checkOutTo ? colors.textPrimary : colors.textMuted, fontSize: fontSize.base }}>
+                        {checkOutTo ? formatDate(checkOutTo) : 'Select End Date'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+                  <TouchableOpacity onPress={clearFilters} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                    <Text style={{ color: colors.textSecondary, fontWeight: fontWeight.bold as any }}>Clear All</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowFilters(false)} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center' }}>
+                    <Text style={{ color: colors.textOnPrimary, fontWeight: fontWeight.bold as any }}>Apply Filters</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              // --- 2. INTEGRATED CALENDAR DATE PICKER ---
+              <View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <Text style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
+                    Select {pickerType === 'in' ? 'Start' : 'End'} Date
+                  </Text>
+                  <TouchableOpacity onPress={() => setPickerType(null)}><X size={20} color={colors.textMuted} /></TouchableOpacity>
+                </View>
+
+                {/* Simple Month Navigator */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, backgroundColor: colors.backgroundSecondary, padding: spacing.sm, borderRadius: radius.md }}>
+                  <TouchableOpacity onPress={() => setTempDate(new Date(tempDate.getFullYear(), tempDate.getMonth() - 1, 1))}>
+                    <Text style={{ color: colors.primary, fontWeight: fontWeight.bold as any, padding: spacing.sm }}>Prev</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: fontSize.base, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
+                    {MONTHS[tempDate.getMonth()]} {tempDate.getFullYear()}
+                  </Text>
+                  <TouchableOpacity onPress={() => setTempDate(new Date(tempDate.getFullYear(), tempDate.getMonth() + 1, 1))}>
+                    <Text style={{ color: colors.primary, fontWeight: fontWeight.bold as any, padding: spacing.sm }}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ flexDirection: 'row', marginBottom: spacing.sm }}>
+                  {WEEKDAYS.map(w => (
+                    <View key={w} style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold as any }}>{w}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Calendar Grid */}
+                <View>
+                  {(() => {
+                    const firstDay = new Date(tempDate.getFullYear(), tempDate.getMonth(), 1);
+                    const lastDay = new Date(tempDate.getFullYear(), tempDate.getMonth() + 1, 0);
+                    const offset = firstDay.getDay();
+                    const days = Array.from({ length: lastDay.getDate() }, (_, i) => i + 1);
+                    const cells = [...Array(offset).fill(null), ...days];
+                    const rows = [];
+                    for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+                    return rows.map((row, ri) => (
+                      <View key={ri} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                        {row.map((day, di) => {
+                          if (!day) return <View key={di} style={{ flex: 1 }} />;
+                          const cellDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), day);
+                          const todayDate = new Date();
+                          todayDate.setHours(0,0,0,0);
+                          const isPast = cellDate < todayDate;
+                          const dateStr = formatLocalDate(cellDate);
+                          const isSelected = (pickerType === 'in' ? checkInFrom : checkOutTo) === dateStr;
+                          
+                          return (
+                            <TouchableOpacity
+                              key={di}
+                              disabled={isPast}
+                              onPress={() => {
+                                if (isPast) return;
+                                if (pickerType === 'in') setCheckInFrom(dateStr);
+                                else setCheckOutTo(dateStr);
+                                setPickerType(null);
+                              }}
+                              style={{ 
+                                flex: 1, alignItems: 'center', paddingVertical: 8,
+                                backgroundColor: isSelected ? colors.primary : 'transparent',
+                                borderRadius: radius.md,
+                                opacity: isPast ? 0.3 : 1
+                              }}
+                            >
+                              <Text style={{ 
+                                fontSize: fontSize.sm, 
+                                color: isSelected ? colors.textOnPrimary : isPast ? colors.textMuted : colors.textPrimary,
+                                fontWeight: isSelected ? fontWeight.bold as any : fontWeight.regular as any
+                              }}>
+                                {day}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    ));
+                  })()}
+                </View>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
 

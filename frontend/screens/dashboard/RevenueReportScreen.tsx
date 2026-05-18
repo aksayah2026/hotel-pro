@@ -224,7 +224,7 @@ export default function RevenueReportScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>
                   {type === 'month' 
-                    ? (selectedMonth ? 'Specific Month' : 'Yearly Breakdown') 
+                    ? (selectedMonth ? 'Specific Month' : 'Monthly Breakdown') 
                     : (selectedYear ? 'Specific Year' : 'Lifetime Growth')
                   }
                 </Text>

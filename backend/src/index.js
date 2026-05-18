@@ -155,10 +155,30 @@ app.use((req, res) => {
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Hotel Management Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV}`);
   console.log(`📡 Bound to: 0.0.0.0 (Accepts external connections)`);
 });
+
+// Graceful shutdown handling
+const prismaInstance = require('./lib/prisma');
+const gracefulShutdown = async (signal) => {
+  console.log(`\nReceived ${signal}. Gracefully shutting down...`);
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    try {
+      await prismaInstance.$disconnect();
+      console.log('🔌 Prisma disconnected successfully.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error during database disconnection:', err);
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = app;

@@ -44,8 +44,14 @@ const computeFinance = (booking) => {
 // GET /api/bookings
 const getAllBookings = async (req, res) => {
   try {
-    const { status, type, page = 1, limit = 10, search, checkInFrom, checkOutTo, sort = 'createdAt' } = req.query;
+    const { status, type, page = 1, limit = 10, search, checkInFrom, checkOutTo, roomId, sort = 'createdAt' } = req.query;
     const where = { tenantId: req.user.tenantId };
+
+    if (roomId) {
+      where.bookingRooms = {
+        some: { roomId }
+      };
+    }
 
     if (status) {
       where.status = status;

@@ -102,7 +102,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       {/* RECENT ACTIVITY */}
       <View>
          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>RECENT ACTIVITY</Text>
+            <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>RECENT ACTIVITES</Text>
          </View>
          <Card padding={0} style={{ overflow: 'hidden' }}>
             {history.map((item, idx) => (
@@ -124,8 +124,17 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                    </Text>
                    <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>{item.customer?.name}</Text>
                 </View>
-                <View style={{ backgroundColor: colors.success + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 8, color: colors.success, fontWeight: fontWeight.bold as any }}>COMPLETED</Text>
+                <View style={{ 
+                  backgroundColor: item.status === 'CANCELLED' ? colors.error + '15' : colors.success + '15', 
+                  paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 
+                }}>
+                  <Text style={{ 
+                    fontSize: 8, 
+                    color: item.status === 'CANCELLED' ? colors.error : colors.success, 
+                    fontWeight: fontWeight.bold as any 
+                  }}>
+                    {item.status}
+                  </Text>
                 </View>
               </View>
             ))}

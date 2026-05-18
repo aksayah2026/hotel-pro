@@ -224,11 +224,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>{item.customer?.name}</Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.success }}>
+                <Text style={{ 
+                  fontSize: fontSize.sm, 
+                  fontWeight: fontWeight.bold as any, 
+                  color: item.status === 'CANCELLED' ? colors.error : colors.success 
+                }}>
                   {formatCurrency(Number(item.totalAmount))}
                 </Text>
-                <View style={{ backgroundColor: colors.success + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 8, color: colors.success, fontWeight: fontWeight.bold as any }}>COMPLETED</Text>
+                <View style={{ 
+                  backgroundColor: item.status === 'CANCELLED' ? colors.error + '15' : colors.success + '15', 
+                  paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 
+                }}>
+                  <Text style={{ 
+                    fontSize: 8, 
+                    color: item.status === 'CANCELLED' ? colors.error : colors.success, 
+                    fontWeight: fontWeight.bold as any 
+                  }}>
+                    {item.status}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>

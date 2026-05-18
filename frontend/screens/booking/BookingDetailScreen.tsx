@@ -312,8 +312,8 @@ export default function BookingDetailScreen() {
           <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary, marginBottom: spacing.md }}>
             Booking Details
           </Text>
-          {booking.status === 'CANCELLED' ? (
-            <View style={{ backgroundColor: colors.errorBg, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.md }}>
+          {booking.status === 'CANCELLED' && (
+            <View style={{ backgroundColor: colors.errorBg || '#FFECEC', padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.md }}>
               <Text style={{ fontSize: fontSize.sm, color: colors.error, fontWeight: fontWeight.bold as any }}>
                 BOOKING CANCELLED
               </Text>
@@ -321,14 +321,11 @@ export default function BookingDetailScreen() {
                 Cancelled on: {formatDateTimeIST(booking.updatedAt)}
               </Text>
             </View>
-          ) : (
-            <>
-              <SummaryRow label="Check-In"  value={formatDate(booking.checkInDate)} />
-              <SummaryRow label="Check-Out" value={formatDate(booking.checkOutDate)} />
-              {booking.actualCheckIn  && <SummaryRow label="Actual Check-In"  value={formatDateTimeIST(booking.actualCheckIn)} />}
-              {booking.actualCheckOut && <SummaryRow label="Actual Check-Out" value={formatDateTimeIST(booking.actualCheckOut)} />}
-            </>
           )}
+          <SummaryRow label="Check-In"  value={formatDate(booking.checkInDate)} />
+          <SummaryRow label="Check-Out" value={formatDate(booking.checkOutDate)} />
+          {booking.actualCheckIn  && <SummaryRow label="Actual Check-In"  value={formatDateTimeIST(booking.actualCheckIn)} />}
+          {booking.actualCheckOut && <SummaryRow label="Actual Check-Out" value={formatDateTimeIST(booking.actualCheckOut)} />}
         </Card>
 
         {/* Customer */}
@@ -470,20 +467,20 @@ export default function BookingDetailScreen() {
           )}
 
           {/* 2. Add Payment (Applicable to both BOOKED and CHECKED_IN - Primary) */}
-          <Button
-            label={remaining > 0 ? `Add Payment (₹${remaining.toLocaleString('en-IN')} due)` : 'Fully Paid'}
-            variant={remaining > 0 ? 'primary' : 'secondary'}
-            onPress={() => navigation.navigate('AddPayment', { bookingId: booking.id })}
-            fullWidth
-            disabled={remaining <= 0}
-            icon={<CreditCard size={18} color={remaining > 0 ? colors.textOnPrimary : colors.textMuted} />}
-            style={{ 
-              opacity: remaining > 0 ? 0.9 : 0.6,
-              backgroundColor: remaining > 0 ? colors.primary : colors.border,
-              borderColor: remaining > 0 ? colors.primary : colors.border,
-            }}
-            textStyle={remaining > 0 ? {} : { color: colors.textMuted }}
-          />
+          {remaining > 0 && booking.paymentStatus !== 'PAID' && (
+            <Button
+              label={`Add Payment (₹${remaining.toLocaleString('en-IN')} due)`}
+              variant="primary"
+              onPress={() => navigation.navigate('AddPayment', { bookingId: booking.id })}
+              fullWidth
+              icon={<CreditCard size={18} color={colors.textOnPrimary} />}
+              style={{ 
+                opacity: 0.9,
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+              }}
+            />
+          )}
 
           {/* 3. Check-Out (CHECKED_IN only - Strongest CTA) */}
           {booking.status === 'CHECKED_IN' && (

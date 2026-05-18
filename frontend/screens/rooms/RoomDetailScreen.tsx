@@ -95,8 +95,12 @@ export default function RoomDetailScreen() {
     setLoading(true);
     try {
       await roomService.updateStatus(room.id, status);
+      const wasCleaning = room.status === 'CLEANING';
       setRoom((prev) => ({ ...prev, status }));
       onRefresh?.();
+      if (wasCleaning && status === 'AVAILABLE') {
+        Alert.alert('🧹 Housekeeping Completed', 'Room marked as available successfully');
+      }
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message ?? 'Failed to update room status');
     } finally {

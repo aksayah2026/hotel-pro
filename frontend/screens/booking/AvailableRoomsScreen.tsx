@@ -204,39 +204,89 @@ export default function AvailableRoomsScreen() {
         }
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: spacing['3xl'] }}>
-            <Card style={{ width: '100%', paddingVertical: spacing['3xl'], paddingHorizontal: spacing.xl, alignItems: 'center', backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.divider }}>
-              <EmptyState
-                icon={<BedDouble size={64} color={colors.textMuted} strokeWidth={1} style={{ opacity: 0.6 }} />}
-                title={totalRooms === 0 ? "No Rooms Available" : "Fully Booked"}
-                message={totalRooms === 0 
+            <Card style={{ 
+              width: '100%', 
+              paddingVertical: spacing['3xl'], 
+              paddingHorizontal: spacing.xl, 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              backgroundColor: colors.surface, 
+              borderStyle: 'dashed', 
+              borderWidth: 1.5, 
+              borderColor: colors.divider 
+            }} elevated={false}>
+              
+              {/* Centered Circular Icon Container */}
+              <View style={{ 
+                width: 80, 
+                height: 80, 
+                borderRadius: 40, 
+                backgroundColor: colors.backgroundSecondary, 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                marginBottom: spacing.lg,
+                opacity: 0.8
+              }}>
+                <BedDouble size={40} color={colors.textMuted} strokeWidth={1.5} />
+              </View>
+
+              {/* Centered Title */}
+              <Text style={{ 
+                fontSize: fontSize.lg, 
+                fontWeight: fontWeight.bold as any, 
+                color: colors.textPrimary, 
+                textAlign: 'center', 
+                marginBottom: spacing.sm 
+              }}>
+                {totalRooms === 0 ? "No Rooms Available" : "Fully Booked"}
+              </Text>
+
+              {/* Centered Message */}
+              <Text style={{ 
+                fontSize: fontSize.sm, 
+                color: colors.textMuted, 
+                textAlign: 'center', 
+                lineHeight: 22, 
+                paddingHorizontal: spacing.sm,
+                marginBottom: spacing.xl 
+              }}>
+                {totalRooms === 0 
                   ? "Rooms have not been created yet. Please create rooms in Room Management before proceeding with bookings."
                   : "All rooms are booked for the selected dates. Please try different dates."
                 }
-                action={
-                  <View style={{ marginTop: spacing.xl, width: '100%', gap: spacing.md }}>
-                    {totalRooms === 0 ? (
-                      <>
-                        <Button 
-                          label="Create Room" 
-                          onPress={() => navigation.navigate('AddRoom')}
-                          fullWidth
-                          size="lg"
-                        />
-                        <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs }}>
-                          You can create rooms from the Room Management section anytime.
-                        </Text>
-                      </>
-                    ) : (
-                      <Button 
-                        label="Change Search Dates" 
-                        onPress={() => navigation.goBack()} 
-                        variant="secondary"
-                        fullWidth
-                      />
-                    )}
-                  </View>
-                }
-              />
+              </Text>
+
+              {/* Centered Action Buttons with Responsive Width Limits */}
+              <View style={{ width: '100%', alignItems: 'center', gap: spacing.md }}>
+                {totalRooms === 0 ? (
+                  <>
+                    <Button 
+                      label="Create Room" 
+                      onPress={() => navigation.navigate('AddRoom')}
+                      style={{ width: '100%', maxWidth: 280 }}
+                      size="lg"
+                    />
+                    <Text style={{ 
+                      fontSize: 11, 
+                      color: colors.textMuted, 
+                      textAlign: 'center', 
+                      marginTop: spacing.xs,
+                      paddingHorizontal: spacing.md
+                    }}>
+                      You can create rooms from the Room Management section anytime.
+                    </Text>
+                  </>
+                ) : (
+                  <Button 
+                    label="Change Search Dates" 
+                    onPress={() => navigation.goBack()} 
+                    variant="secondary"
+                    style={{ width: '100%', maxWidth: 280 }}
+                    size="lg"
+                  />
+                )}
+              </View>
+
             </Card>
           </View>
         }

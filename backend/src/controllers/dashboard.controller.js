@@ -21,57 +21,39 @@ const getDashboardStats = async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
     const [
-      totalRooms,
-      availableRooms,
-      occupiedRooms,
-      cleaningRooms,
-      totalBookings,
-      todayIncoming,
-      todayOutgoing,
-      todayTransactions,
-      revenueResult,
-      pendingPayments,
+      roomCounts,
+      activeBookings,
+      todayPaymentStats,
       weeklyRevenue,
       revenueByMode,
     ] = await Promise.all([
-      prisma.room.count({ where: { ...tenantFilter, isActive: true } }),
-      prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'AVAILABLE' } }),
-      prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'OCCUPIED' } }),
-      prisma.room.count({ where: { ...tenantFilter, isActive: true, status: 'CLEANING' } }),
-      prisma.booking.count({ where: { ...tenantFilter, status: { in: ['BOOKED', 'CHECKED_IN'] } } }),
-      
-      // Incoming: Booked to arrive today
-      prisma.booking.count({
-        where: { ...tenantFilter, checkInDate: { gte: today, lt: tomorrow }, status: 'BOOKED' },
+      // Optimized single query to gather count of rooms by status in a single pass
+      prisma.room.groupBy({
+        by: ['status'],
+        where: { ...tenantFilter, isActive: true },
+        _count: { _all: true }
       }),
-      
-      // Outgoing: Scheduled to checkout today (only active checked-in guests)
-      prisma.booking.count({
-        where: { ...tenantFilter, checkOutDate: { gte: today, lt: tomorrow }, status: 'CHECKED_IN' },
+      prisma.booking.findMany({
+        where: { ...tenantFilter, status: { in: ['BOOKED', 'CHECKED_IN'] } },
+        select: {
+          status: true,
+          checkInDate: true,
+          checkOutDate: true,
+          paymentStatus: true
+        }
       }),
-
-      // Transactions: Count of payments today
-      prisma.payment.count({
-        where: { ...bookingTenantFilter, paidAt: { gte: today, lt: tomorrow } },
-      }),
-
-      // Revenue Sum
       prisma.payment.aggregate({
+        _count: { _all: true },
         _sum: { amount: true },
         where: { ...bookingTenantFilter, paidAt: { gte: today, lt: tomorrow } },
       }),
-
-      prisma.booking.count({
-        where: { ...tenantFilter, paymentStatus: { in: ['PENDING', 'PARTIAL'] }, status: { in: ['BOOKED', 'CHECKED_IN'] } },
-      }),
-
+      // Security & Performance Fix: Restrict weekly grouping strictly to current tenant
       prisma.payment.groupBy({
         by: ['paidAt'],
         _sum: { amount: true },
-        where: { paidAt: { gte: sevenDaysAgo } },
+        where: { ...bookingTenantFilter, paidAt: { gte: sevenDaysAgo } },
         orderBy: { paidAt: 'asc' },
       }),
-
       prisma.payment.groupBy({
         by: ['mode'],
         _sum: { amount: true },
@@ -82,8 +64,37 @@ const getDashboardStats = async (req, res) => {
       })
     ]);
 
+    const totalBookings = activeBookings.length;
+    const todayIncoming = activeBookings.filter(b => {
+      const time = new Date(b.checkInDate).getTime();
+      return b.status === 'BOOKED' && time >= today.getTime() && time < tomorrow.getTime();
+    }).length;
 
+    const todayOutgoing = activeBookings.filter(b => {
+      const time = new Date(b.checkOutDate).getTime();
+      return b.status === 'CHECKED_IN' && time >= today.getTime() && time < tomorrow.getTime();
+    }).length;
 
+    const pendingPayments = activeBookings.filter(b => 
+      ['PENDING', 'PARTIAL'].includes(b.paymentStatus)
+    ).length;
+
+    const todayTransactions = todayPaymentStats._count._all;
+    const revenueResult = { _sum: { amount: todayPaymentStats._sum.amount } };
+
+    // Map room counts from group by result
+    let totalRooms = 0;
+    let availableRooms = 0;
+    let occupiedRooms = 0;
+    let cleaningRooms = 0;
+
+    roomCounts.forEach(group => {
+      const count = group._count._all;
+      totalRooms += count;
+      if (group.status === 'AVAILABLE') availableRooms = count;
+      if (group.status === 'OCCUPIED') occupiedRooms = count;
+      if (group.status === 'CLEANING') cleaningRooms = count;
+    });
 
     res.json({
       success: true,
