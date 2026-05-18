@@ -39,6 +39,8 @@ export default function BookingDetailScreen() {
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [extraLabel, setExtraLabel] = useState('');
   const [extraAmount, setExtraAmount] = useState('');
+  const [extraLabelError, setExtraLabelError] = useState('');
+  const [extraAmountError, setExtraAmountError] = useState('');
 
   const fetch = async () => {
     setLoading(true);
@@ -155,14 +157,55 @@ export default function BookingDetailScreen() {
     ]);
   };
   
+  const handleLabelChange = (text: string) => {
+    // Sanitize emojis, hidden unicode, and special symbols in real-time
+    const sanitized = text.replace(/[^\x20-\x7E]/g, '');
+    
+    // Alphanumeric regex validation (letters, numbers, spaces, hyphens, commas, periods)
+    if (sanitized !== '' && !/^[a-zA-Z0-9\s\-,\.]*$/.test(sanitized)) {
+      setExtraLabelError('Only letters and numbers are allowed.');
+    } else {
+      setExtraLabelError('');
+    }
+    setExtraLabel(sanitized);
+  };
+
+  const handleAmountChange = (text: string) => {
+    // Keep numbers and decimals only
+    const clean = text.replace(/[^0-9.]/g, '');
+    
+    // Prevent multiple decimals
+    const parts = clean.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : clean;
+    
+    setExtraAmount(sanitized);
+
+    const amt = parseFloat(sanitized);
+    if (sanitized === '') {
+      setExtraAmountError('');
+    } else if (isNaN(amt) || amt <= 0) {
+      setExtraAmountError('Amount must be a positive number.');
+    } else {
+      setExtraAmountError('');
+    }
+  };
+  
   const handleAddExtraCharge = async () => {
     const amount = parseFloat(extraAmount);
-    const cleanLabel = extraLabel.trim();
     
-    if (!cleanLabel || isNaN(amount) || amount <= 0) {
-      Alert.alert('Amount field accepts numbers only.', 'Please enter a valid description and a numeric amount greater than zero.');
+    // Secure Trim and Sanitization before API submission
+    const cleanLabel = extraLabel.trim().replace(/[^a-zA-Z0-9\s\-,\.]/g, '');
+    
+    if (!cleanLabel || !/^[a-zA-Z0-9\s\-,\.]*$/.test(cleanLabel)) {
+      setExtraLabelError('Only letters and numbers are allowed.');
       return;
     }
+    
+    if (isNaN(amount) || amount <= 0) {
+      setExtraAmountError('Amount must be a positive number.');
+      return;
+    }
+    
     setActionLoading(true);
     try {
       await bookingService.addExtraCharge(bookingId, cleanLabel, amount);
@@ -175,6 +218,8 @@ export default function BookingDetailScreen() {
       setShowExtraModal(false);
       setExtraLabel('');
       setExtraAmount('');
+      setExtraLabelError('');
+      setExtraAmountError('');
       
       Alert.alert(
         '✅ Success',
@@ -458,7 +503,13 @@ export default function BookingDetailScreen() {
             <Button
               label="Add Extra Charge"
               variant="secondary"
-              onPress={() => setShowExtraModal(true)}
+              onPress={() => {
+                setExtraLabel('');
+                setExtraAmount('');
+                setExtraLabelError('');
+                setExtraAmountError('');
+                setShowExtraModal(true);
+              }}
               fullWidth
               style={{ backgroundColor: colors.backgroundSecondary, borderColor: colors.primary }}
               textStyle={{ color: colors.primary }}
@@ -538,7 +589,8 @@ export default function BookingDetailScreen() {
                  label="Charge Description"
                  placeholder="e.g. Extra Bed, Laundry, etc."
                  value={extraLabel}
-                 onChangeText={setExtraLabel}
+                 onChangeText={handleLabelChange}
+                 error={extraLabelError}
                />
                
                <Input
@@ -546,7 +598,8 @@ export default function BookingDetailScreen() {
                  placeholder="Enter amount"
                  keyboardType="numeric"
                  value={extraAmount}
-                 onChangeText={(v) => setExtraAmount(v.replace(/[^0-9.]/g, ''))}
+                 onChangeText={handleAmountChange}
+                 error={extraAmountError}
                />
 
                <View style={{ gap: spacing.md, marginTop: spacing.md }}>
@@ -554,6 +607,8 @@ export default function BookingDetailScreen() {
                     label="Add Charge" 
                     onPress={handleAddExtraCharge} 
                     loading={actionLoading} 
+                    disabled={!!extraLabelError || !!extraAmountError || !extraLabel.trim() || !extraAmount.trim()}
+                    style={{ opacity: (!!extraLabelError || !!extraAmountError || !extraLabel.trim() || !extraAmount.trim()) ? 0.6 : 1 }}
                     fullWidth 
                   />
                   <Button 

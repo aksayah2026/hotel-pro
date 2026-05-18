@@ -44,10 +44,47 @@ export default function ConfirmBookingScreen() {
   const [bookingType, setBookingType] = useState<'book' | 'checkin'>('book');
   const [loading, setLoading] = useState(false);
   
-  const [paymentType, setPaymentType] = useState<'ADVANCE' | 'FULL'>('FULL');
+  const [paymentType, setPaymentType] = useState<'ADVANCE' | 'FULL'>('ADVANCE');
   const [advanceAmount, setAdvanceAmount] = useState<string>('');
+  const [advanceAmountError, setAdvanceAmountError] = useState('');
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI' | 'CARD'>('CASH');
   const [paymentReference, setPaymentReference] = useState('');
+
+  const handlePaymentTypeChange = (type: 'ADVANCE' | 'FULL') => {
+    setPaymentType(type);
+    if (type === 'FULL') {
+      setAdvanceAmount(totalAmount.toString());
+      setAdvanceAmountError('');
+    } else {
+      setAdvanceAmount('');
+      setAdvanceAmountError('');
+    }
+  };
+
+  const handleAdvanceAmountChange = (val: string) => {
+    // Keep numbers and decimals only
+    const clean = val.replace(/[^0-9.]/g, '');
+    
+    // Prevent multiple decimals
+    const parts = clean.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : clean;
+    
+    // Prevent unrealistic inputs: limit length to 8 characters
+    if (sanitized.length > 8) return;
+
+    setAdvanceAmount(sanitized);
+
+    const amt = parseFloat(sanitized);
+    if (sanitized === '') {
+      setAdvanceAmountError('');
+    } else if (isNaN(amt) || amt < 0) {
+      setAdvanceAmountError('Invalid payment amount.');
+    } else if (amt > totalAmount) {
+      setAdvanceAmountError('Advance amount cannot exceed total booking amount.');
+    } else {
+      setAdvanceAmountError('');
+    }
+  };
 
   if (!rooms || !checkIn || !checkOut || !nights || !customer || totalAmount === undefined) {
     return (
@@ -69,7 +106,16 @@ export default function ConfirmBookingScreen() {
 
   const formatDisplay = (d: string) => formatDisplayDate(d);
 
+  const isConfirmDisabled = !!advanceAmountError || (paymentType === 'ADVANCE' && advanceAmount === '');
+
   const handleConfirm = async () => {
+    if (paymentType === 'ADVANCE') {
+      const advAmt = parseFloat(advanceAmount || '0');
+      if (isNaN(advAmt) || advAmt < 0 || advAmt > totalAmount) {
+        Alert.alert('Payment Error', 'Advance amount cannot exceed total booking amount.');
+        return;
+      }
+    }
     setLoading(true);
     try {
       const payload = {
@@ -126,7 +172,7 @@ export default function ConfirmBookingScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header title="Confirm Booking" subtitle="Step 5 of 5" showBack />
+      <Header title="Confirm Booking" showBack />
       <StepIndicator currentStep={5} />
 
       <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>
@@ -258,10 +304,10 @@ export default function ConfirmBookingScreen() {
 
           {/* Payment Type Selection */}
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-            {(['FULL', 'ADVANCE'] as const).map((type) => (
+            {(['ADVANCE', 'FULL'] as const).map((type) => (
               <TouchableOpacity
                 key={type}
-                onPress={() => setPaymentType(type)}
+                onPress={() => handlePaymentTypeChange(type)}
                 style={{
                   flex: 1,
                   paddingVertical: spacing.sm,
@@ -277,22 +323,23 @@ export default function ConfirmBookingScreen() {
                   fontWeight: fontWeight.bold as any,
                   fontSize: fontSize.sm
                 }}>
-                  {type === 'FULL' ? 'Full Payment' : 'Advance'}
+                  {type === 'ADVANCE' ? 'Advance Payment' : 'Full Payment'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {paymentType === 'ADVANCE' && (
-            <Input
-              label="Advance Amount"
-              placeholder="Enter amount"
-              keyboardType="numeric"
-              value={advanceAmount}
-              onChangeText={(v) => setAdvanceAmount(v.replace(/[^0-9.]/g, ''))}
-              leftIcon={<Text style={{ color: colors.textMuted }}>₹</Text>}
-            />
-          )}
+          <Input
+            label={paymentType === 'ADVANCE' ? 'Advance Amount' : 'Full Payment Amount'}
+            placeholder="Enter amount"
+            keyboardType="numeric"
+            value={advanceAmount}
+            onChangeText={handleAdvanceAmountChange}
+            editable={paymentType === 'ADVANCE'}
+            error={advanceAmountError}
+            leftIcon={<Text style={{ color: colors.textMuted }}>₹</Text>}
+            hint={paymentType === 'FULL' ? 'Full booking amount is locked and paid.' : 'Enter advance payment amount or 0.'}
+          />
 
           <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm }}>
             Payment Mode
@@ -423,6 +470,8 @@ export default function ConfirmBookingScreen() {
           label={bookingType === 'checkin' ? '✓ Confirm & Check-In' : '✓ Confirm Booking'}
           onPress={handleConfirm}
           loading={loading}
+          disabled={isConfirmDisabled || loading}
+          style={{ opacity: (isConfirmDisabled || loading) ? 0.6 : 1 }}
           fullWidth size="lg"
         />
       </View>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   RefreshControl, StatusBar, Alert, ActivityIndicator,
@@ -29,11 +29,14 @@ export default function RoomsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('ALL');
 
+  const lastFetchedAtRef = useRef<number>(0);
+
   const fetchRooms = useCallback(async () => {
     try {
       const res = await roomService.getAll();
       setRooms(res.data.data);
       setFiltered(res.data.data);
+      lastFetchedAtRef.current = Date.now();
     } catch (_) {
       Alert.alert('Error', 'Failed to load rooms');
     } finally {
@@ -44,7 +47,10 @@ export default function RoomsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchRooms();
+      const isStale = Date.now() - lastFetchedAtRef.current > 60000;
+      if (!lastFetchedAtRef.current || isStale) {
+        fetchRooms();
+      }
     }, [fetchRooms])
   );
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   RefreshControl, StatusBar, Alert, Modal, TextInput, ActivityIndicator
@@ -43,6 +43,9 @@ export default function BookingsScreen() {
   const [checkInFrom, setCheckInFrom] = useState('');
   const [checkOutTo, setCheckOutTo] = useState('');
 
+  const lastFetchedAtRef = useRef<number>(0);
+  const lastFetchedFiltersRef = useRef<string>('');
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
@@ -66,6 +69,10 @@ export default function BookingsScreen() {
       setBookings(prev => append ? [...prev, ...newData] : newData);
       setPage(pagination.page);
       setHasMore(pagination.page < pagination.pages);
+
+      // Cache fetch timestamp and parameters on success
+      lastFetchedAtRef.current = Date.now();
+      lastFetchedFiltersRef.current = `${activeFilter}-${debouncedSearch}-${checkInFrom}-${checkOutTo}`;
     } catch (_) {
     } finally {
       setLoading(false);
@@ -84,11 +91,6 @@ export default function BookingsScreen() {
     fetchBookings(page + 1, true);
   };
 
-  // Reset and fetch when filters change
-  useEffect(() => {
-    fetchBookings(1, false);
-  }, [activeFilter, debouncedSearch, checkInFrom, checkOutTo]);
-
   // Handle incoming navigation params (Quick Actions)
   useEffect(() => {
     if (route.params?.activeTab) {
@@ -102,9 +104,14 @@ export default function BookingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Refresh visible page on focus
-      fetchBookings(1, false);
-    }, [fetchBookings])
+      const currentFilters = `${activeFilter}-${debouncedSearch}-${checkInFrom}-${checkOutTo}`;
+      const filtersChanged = currentFilters !== lastFetchedFiltersRef.current;
+      const isStale = Date.now() - lastFetchedAtRef.current > 60000;
+
+      if (!lastFetchedAtRef.current || isStale || filtersChanged) {
+        fetchBookings(1, false);
+      }
+    }, [fetchBookings, activeFilter, debouncedSearch, checkInFrom, checkOutTo])
   );
 
   const clearFilters = () => {

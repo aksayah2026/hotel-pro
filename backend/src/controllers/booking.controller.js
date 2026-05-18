@@ -31,20 +31,30 @@ const computeFinance = (booking) => {
   const totalPaid = booking.payments?.reduce((sum, p) => sum + parseFloat(p.amount), 0) || 0;
   const extraTotal = booking.extraCharges?.reduce((sum, c) => sum + parseFloat(c.amount), 0) || 0;
   const totalAmount = parseFloat(booking.totalAmount);
+  
+  let eventDate = booking.updatedAt;
+  if (booking.status === 'COMPLETED') {
+    eventDate = booking.actualCheckOut || booking.checkOutDate;
+  } else if (booking.status === 'CANCELLED') {
+    eventDate = booking.updatedAt;
+  }
+
   return {
     ...booking,
     roomAmount: parseFloat(booking.roomAmount || 0),
     discount: parseFloat(booking.discount || 0),
     extraTotal,
     paidAmount: totalPaid,
-    pendingAmount: Math.max(0, totalAmount - totalPaid)
+    pendingAmount: Math.max(0, totalAmount - totalPaid),
+    eventDate
   };
 };
 
 // GET /api/bookings
 const getAllBookings = async (req, res) => {
   try {
-    const { status, type, page = 1, limit = 10, search, checkInFrom, checkOutTo, roomId, sort = 'createdAt' } = req.query;
+    const { status, type, page = 1, limit = 10, search, checkInFrom, checkOutTo, roomId, sort } = req.query;
+    const sortField = sort || (type === 'history' ? 'checkOutDate' : 'createdAt');
     const where = { tenantId: req.user.tenantId };
 
     if (roomId) {
@@ -85,7 +95,7 @@ const getAllBookings = async (req, res) => {
           payments: { select: { amount: true } },
           extraCharges: { select: { amount: true } },
         },
-        orderBy: { [sort]: 'desc' },
+        orderBy: { [sortField]: 'desc' },
         skip: (parseInt(page) - 1) * parseInt(limit),
         take: parseInt(limit),
       }),
@@ -226,7 +236,10 @@ const createBooking = async (req, res) => {
     }
 
     if (paidAmt > totalAmt) {
-      return res.status(400).json({ success: false, message: 'Paid amount cannot exceed total amount' });
+      const message = paymentType === 'ADVANCE' 
+        ? 'Advance amount cannot exceed total booking amount.' 
+        : 'Paid amount cannot exceed total amount';
+      return res.status(400).json({ success: false, message });
     }
     if (paidAmt < 0) {
       return res.status(400).json({ success: false, message: 'Paid amount cannot be negative' });
@@ -428,7 +441,7 @@ const checkOut = async (req, res) => {
     let oldExtraTotal = booking.extraCharges.reduce((sum, c) => sum + parseFloat(c.amount), 0);
     const baseAmount = parseFloat(booking.totalAmount) - oldExtraTotal;
 
-    let newExtraTotal = 0;
+    let newExtraTotal = oldExtraTotal;
     if (extraCharges && Array.isArray(extraCharges)) {
       newExtraTotal = extraCharges.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
     }
@@ -438,13 +451,14 @@ const checkOut = async (req, res) => {
     const remainingBeforeCollection = finalTotal - totalPaidBeforeCollection;
     
     const collectionValue = collectAmount ? parseFloat(collectAmount) : 0;
-    const remaining = remainingBeforeCollection - collectionValue;
 
-    if (remaining > 0) {
+    const expected = Math.round(remainingBeforeCollection * 100) / 100;
+    const actual = Math.round(collectionValue * 100) / 100;
+
+    if (actual !== expected) {
       return res.status(400).json({
         success: false,
-        message: `Payment pending. Remaining amount: ₹${remaining.toFixed(2)}`,
-        data: { totalAmount: finalTotal, paidAmount: totalPaidBeforeCollection + collectionValue, remaining },
+        message: `Checkout requires exact pending balance collection. Expected: ₹${expected.toFixed(2)}, Received: ₹${actual.toFixed(2)}`,
       });
     }
 

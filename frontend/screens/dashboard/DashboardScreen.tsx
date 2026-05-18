@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, RefreshControl,
-  TouchableOpacity, StatusBar, Dimensions
+  TouchableOpacity, StatusBar, Dimensions, DeviceEventEmitter
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -50,9 +50,19 @@ export default function DashboardScreen() {
   const [revenueType, setRevenueType] = useState('today');
   const [history, setHistory] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revenueLoading, setRevenueLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const revenueRequestRef = useRef<number>(0);
+  const revenueTypeRef = useRef<string>(revenueType);
+  const lastFetchedAtRef = useRef<number>(0);
+
+  // Keep revenueTypeRef in sync
+  useEffect(() => {
+    revenueTypeRef.current = revenueType;
+  }, [revenueType]);
 
   // Live Clock
   useEffect(() => {
@@ -65,48 +75,80 @@ export default function DashboardScreen() {
     registerForPushNotificationsAsync();
   }, []);
 
+  // Listen for real-time notification unread count updates
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('UPDATE_UNREAD_COUNT', (count: number) => {
+      setUnreadNotifications(count);
+    });
+    return () => sub.remove();
+  }, []);
+
   const fetchRevenue = async (type: string) => {
     if (!isAdmin) return; // Staff shouldn't fetch revenue
+    const requestId = ++revenueRequestRef.current;
+    setRevenueLoading(true);
     try {
       const res = await dashboardService.getRevenueAnalytics(type);
-      setRevenue(res.data.data);
+      if (requestId === revenueRequestRef.current) {
+        setRevenue(res.data.data);
+      }
     } catch (err) {
       console.error('Revenue Fetch Error:', err);
+    } finally {
+      if (requestId === revenueRequestRef.current) {
+        setRevenueLoading(false);
+      }
     }
   };
 
   const fetchAll = useCallback(async () => {
+    const requestId = ++revenueRequestRef.current;
+    setRevenueLoading(true);
     try {
       const promises: any[] = [
         dashboardService.getStats(),
-        bookingService.getAll({ type: 'history', limit: 5, sort: 'updatedAt' }),
+        bookingService.getAll({ type: 'history', limit: 5, sort: 'checkOutDate' }),
         notificationService.getAll(1, 1),
       ];
       
       if (isAdmin) {
-        promises.push(dashboardService.getRevenueAnalytics(revenueType));
+        promises.push(dashboardService.getRevenueAnalytics(revenueTypeRef.current));
       }
 
       const results = await Promise.all(promises);
       setData(results[0].data.data);
       setHistory(results[1].data.data);
       setUnreadNotifications(results[2]?.data?.unreadCount || 0);
-      if (isAdmin && results[3]) {
+      if (isAdmin && results[3] && requestId === revenueRequestRef.current) {
         setRevenue(results[3].data.data);
       }
+      lastFetchedAtRef.current = Date.now();
     } catch (err) {
       console.error('Dashboard Fetch Error:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      if (requestId === revenueRequestRef.current) {
+        setRevenueLoading(false);
+      }
     }
-  }, [revenueType, isAdmin]);
+  }, [isAdmin]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchAll();
+      const isStale = Date.now() - lastFetchedAtRef.current > 60000;
+      if (!lastFetchedAtRef.current || isStale) {
+        fetchAll();
+      }
     }, [fetchAll])
   );
+
+  // Trigger revenue fetch ONLY when filter tab changes
+  useEffect(() => {
+    if (!loading) {
+      fetchRevenue(revenueType);
+    }
+  }, [revenueType]);
 
   useEffect(() => {
     if (route.params?.refresh) {
@@ -161,7 +203,8 @@ export default function DashboardScreen() {
     return `${datePart} • ${timePart.toUpperCase()}`;
   };
 
-  if (loading) return <Loading message="Syncing intelligence..." />;
+  // Instant shell rendering: only fallback to full-screen loader if essential auth/tenant metadata is missing
+  if (loading && !tenant) return <Loading message="Syncing intelligence..." />;
 
   const getRoleLabel = () => {
     if (user?.role === 'TENANT_ADMIN') return `Owner: ${user.name}`;
@@ -256,6 +299,7 @@ export default function DashboardScreen() {
             history={history}
             formatPastEventDate={formatPastEventDate}
             navigation={navigation}
+            isLoading={loading || !data}
           />
         ) : (
           <AdminDashboard 
@@ -269,6 +313,8 @@ export default function DashboardScreen() {
             navigation={navigation}
             formatPastEventDate={formatPastEventDate}
             history={history}
+            isLoading={loading || !data}
+            isRevenueLoading={(loading && !revenue) || revenueLoading}
           />
         )}
 

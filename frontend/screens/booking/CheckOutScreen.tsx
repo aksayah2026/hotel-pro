@@ -61,7 +61,9 @@ export default function CheckOutScreen() {
   const baseAmount   = Number(booking?.totalAmount || 0) - extraTotal;
   const finalTotal   = Number(booking?.totalAmount || 0);
   const remaining    = finalTotal - totalPaid;
-  const canCheckOut  = true; // We always allow checkout, but we validate remaining <= collectAmount inside handleCheckOut
+  
+  const isAmountInvalid = false;
+  const collectAmountError = '';
 
   // Auto-sync the collect amount when remaining charges change naturally
   useEffect(() => {
@@ -104,10 +106,10 @@ export default function CheckOutScreen() {
   const handleCheckOut = async () => {
     const collectVal = parseFloat(collectAmountStr) || 0;
     
-    if (remaining > 0 && collectVal < remaining) {
+    if (remaining > 0 && Math.round(collectVal * 100) / 100 !== Math.round(remaining * 100) / 100) {
       Alert.alert(
-        'Payment Pending',
-        `₹${(remaining - collectVal).toLocaleString('en-IN')} is still strictly due. The full balance must be settled before check-out.`
+        'Exact Payment Required',
+        `Full pending amount must be collected before checkout. Please collect exactly ₹${remaining.toLocaleString('en-IN')}.`
       );
       return;
     }
@@ -217,8 +219,9 @@ export default function CheckOutScreen() {
               label="Amount to Collect (₹)"
               placeholder="e.g. 500"
               value={collectAmountStr}
-              onChangeText={(v) => setCollectAmountStr(v.replace(/[^0-9.]/g, ''))}
+              editable={false}
               keyboardType="decimal-pad"
+              hint="Exact pending balance is required for checkout."
             />
             
             <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semiBold as any, color: colors.textPrimary, marginBottom: spacing.sm, marginTop: spacing.xs }}>
@@ -287,6 +290,8 @@ export default function CheckOutScreen() {
           label={remaining > 0 ? "Collect & Check-Out" : "Complete Check-Out"}
           onPress={handleCheckOut}
           loading={loading}
+          disabled={isAmountInvalid || loading}
+          style={{ opacity: (isAmountInvalid || loading) ? 0.6 : 1 }}
           fullWidth size="lg"
           variant={remaining > 0 ? 'primary' : 'primary'}
           icon={<LogOut size={20} color={colors.textOnPrimary} />}

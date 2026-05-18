@@ -254,7 +254,7 @@ export default function CustomerDetailsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header title="Customer Details" subtitle="Step 3 of 5" showBack />
+      <Header title="Customer Details" showBack />
       <StepIndicator currentStep={3} />
 
       <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, StatusBar,
-  ActivityIndicator, Alert
+  ActivityIndicator, Alert, DeviceEventEmitter
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -28,10 +28,23 @@ export default function NotificationScreen() {
     if (isRef) setRefreshing(true);
     try {
       const res = await notificationService.getAll(1, 100); // Load reasonable chunk for display
-      setNotifications(res.data.data);
-      setUnreadCount(res.data.unreadCount || 0);
-    } catch {
-      Alert.alert('Error', 'Failed to load notifications');
+      const list = res.data.data;
+      const count = res.data.unreadCount || 0;
+      
+      setNotifications(list);
+      setUnreadCount(count);
+      
+      // Auto mark notifications as read when opening the notification screen
+      if (count > 0) {
+        await notificationService.markAllAsRead();
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+        DeviceEventEmitter.emit('UPDATE_UNREAD_COUNT', 0);
+      } else {
+        DeviceEventEmitter.emit('UPDATE_UNREAD_COUNT', 0);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,7 +63,9 @@ export default function NotificationScreen() {
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, isRead: true } : n)
       );
-      if (unreadCount > 0) setUnreadCount(p => p - 1);
+      const nextCount = Math.max(0, unreadCount - 1);
+      setUnreadCount(nextCount);
+      DeviceEventEmitter.emit('UPDATE_UNREAD_COUNT', nextCount);
     } catch (err) {
       console.error(err);
     }
@@ -62,6 +77,7 @@ export default function NotificationScreen() {
       await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      DeviceEventEmitter.emit('UPDATE_UNREAD_COUNT', 0);
       Alert.alert("Success", "All notifications marked as read.");
     } catch {
       Alert.alert('Error', 'Failed to mark all as read');
@@ -83,6 +99,7 @@ export default function NotificationScreen() {
               await notificationService.clearAll();
               setNotifications([]);
               setUnreadCount(0);
+              DeviceEventEmitter.emit('UPDATE_UNREAD_COUNT', 0);
               Alert.alert("Cleared", "All notifications have been removed.");
             } catch (err) {
               Alert.alert('Error', 'Failed to clear notifications. Please try again.');

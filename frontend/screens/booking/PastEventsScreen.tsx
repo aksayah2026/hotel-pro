@@ -70,10 +70,6 @@ export default function PastEventsScreen() {
     fetchBookings(page + 1, true);
   };
 
-  useEffect(() => {
-    fetchBookings(1, false);
-  }, [activeFilter, debouncedSearch]);
-
   useFocusEffect(
     useCallback(() => {
       fetchBookings(1, false);
@@ -97,16 +93,39 @@ export default function PastEventsScreen() {
             flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
             backgroundColor: colors.backgroundSecondary, padding: spacing.md,
             borderBottomWidth: 1, borderBottomColor: colors.divider,
+            gap: spacing.sm,
           }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
+            <View style={{ 
+              flexDirection: 'row', alignItems: 'center', gap: spacing.sm, 
+              flex: 1, marginRight: spacing.xs
+            }}>
+              <Text 
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{ 
+                  fontSize: fontSize.sm, 
+                  fontWeight: fontWeight.bold as any, 
+                  color: colors.textPrimary,
+                  flexShrink: 1
+                }}>
                 {item.bookingNumber}
               </Text>
-              <Badge label={item.status} variant={statusVariant(item.status)} size="sm" />
+              <View style={{ flexShrink: 0 }}>
+                <Badge label={item.status} variant={statusVariant(item.status)} size="sm" />
+              </View>
             </View>
-            <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.primary }}>
-              Room {item.bookingRooms?.[0]?.room?.roomNumber || 'N/A'}
-            </Text>
+            <View style={{ flexShrink: 0 }}>
+              <Text 
+                numberOfLines={1}
+                style={{ 
+                  fontSize: fontSize.sm, 
+                  fontWeight: fontWeight.bold as any, 
+                  color: colors.primary,
+                  textAlign: 'right'
+                }}>
+                Room {item.bookingRooms?.[0]?.room?.roomNumber || 'N/A'}
+              </Text>
+            </View>
           </View>
 
           <View style={{ padding: spacing.md, gap: spacing.sm }}>

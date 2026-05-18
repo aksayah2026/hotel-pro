@@ -113,7 +113,7 @@ export default function SelectDatesScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header title="Select Dates" subtitle="Step 1 of 5" showBack />
+      <Header title="Select Dates" showBack />
 
       {/* Step Indicator */}
       <StepIndicator currentStep={1} />

@@ -22,7 +22,10 @@ export const Input: React.FC<InputProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   const isPassword = secureTextEntry;
+  const isEditable = props.editable !== false;
   const borderColor = error ? colors.error : isFocused ? colors.borderFocused : colors.border;
+  const containerBg = isEditable ? colors.surface : '#F1F5F9';
+  const textClr = isEditable ? colors.textPrimary : colors.textMuted;
 
   return (
     <View style={[{ marginBottom: spacing.base }, containerStyle]}>
@@ -40,26 +43,26 @@ export const Input: React.FC<InputProps> = ({
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
+        backgroundColor: containerBg,
         borderRadius: radius.md,
         borderWidth: 1.5,
-        borderColor,
+        borderColor: isEditable ? borderColor : colors.border,
         paddingHorizontal: spacing.md,
         height: 52,
         gap: spacing.sm,
       }}>
-        {leftIcon && <View style={{ opacity: 0.6 }}>{leftIcon}</View>}
+        {leftIcon && <View style={{ opacity: isEditable ? 0.6 : 0.4 }}>{leftIcon}</View>}
         <TextInput
           {...props}
-          style={{
+          style={[{
             flex: 1,
-            color: colors.textPrimary,
+            color: textClr,
             fontSize: fontSize.base,
             height: '100%',
-          }}
+          }, props.style]}
           secureTextEntry={isPassword && !showPassword}
           placeholderTextColor={colors.textMuted}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => isEditable && setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
         />
         {isPassword && (

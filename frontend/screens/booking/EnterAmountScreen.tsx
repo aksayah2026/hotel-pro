@@ -94,7 +94,7 @@ export default function EnterAmountScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <Header title="Enter Amount" subtitle="Step 4 of 5" showBack />
+      <Header title="Enter Amount" showBack />
       <StepIndicator currentStep={4} />
 
       <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.base }}>

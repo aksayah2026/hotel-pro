@@ -7,16 +7,18 @@ import {
 } from 'lucide-react-native';
 import { Card } from '../../../components/Card';
 import { useTheme } from '../../../theme';
+import { Skeleton } from '../../../components/Skeleton';
 
 interface StaffDashboardProps {
   data: any;
   history: any[];
   formatPastEventDate: (d: string) => string;
   navigation: any;
+  isLoading?: boolean;
 }
 
-export const StaffDashboard: React.FC<StaffDashboardProps> = ({
-  data, history, formatPastEventDate, navigation
+export const StaffDashboard: React.FC<StaffDashboardProps> = React.memo(({
+  data, history, formatPastEventDate, navigation, isLoading = false
 }) => {
   const { theme } = useTheme();
   const { colors, spacing, fontSize, fontWeight, radius } = theme;
@@ -39,6 +41,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           {quickActions.map((action, i) => (
             <TouchableOpacity
               key={i}
+              disabled={isLoading}
               onPress={() => navigation.navigate(action.screen, action.params)}
               style={{
                 width: '47%',
@@ -69,15 +72,27 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
            <Card style={{ flex: 1, alignItems: 'center', padding: spacing.md, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
-              <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.primary }}>{data?.bookings.todayCheckIns}</Text>
+              {isLoading ? (
+                <Skeleton width={40} height={24} borderRadius={4} style={{ marginBottom: 4 }} />
+              ) : (
+                <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.primary }}>{data?.bookings.todayCheckIns}</Text>
+              )}
               <Text style={{ fontSize: 10, color: colors.textMuted }}>INCOMING</Text>
            </Card>
            <Card style={{ flex: 1, alignItems: 'center', padding: spacing.md, borderLeftWidth: 4, borderLeftColor: '#FF9900' }}>
-              <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: '#FF9900' }}>{data?.bookings.todayCheckOuts}</Text>
+              {isLoading ? (
+                <Skeleton width={40} height={24} borderRadius={4} style={{ marginBottom: 4 }} />
+              ) : (
+                <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: '#FF9900' }}>{data?.bookings.todayCheckOuts}</Text>
+              )}
               <Text style={{ fontSize: 10, color: colors.textMuted }}>OUTGOING</Text>
            </Card>
            <Card style={{ flex: 1, alignItems: 'center', padding: spacing.md, borderLeftWidth: 4, borderLeftColor: colors.warning }}>
-              <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.warning }}>{data?.rooms.cleaning}</Text>
+              {isLoading ? (
+                <Skeleton width={40} height={24} borderRadius={4} style={{ marginBottom: 4 }} />
+              ) : (
+                <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold as any, color: colors.warning }}>{data?.rooms.cleaning}</Text>
+              )}
               <Text style={{ fontSize: 10, color: colors.textMuted }}>CLEANING</Text>
            </Card>
         </View>
@@ -86,14 +101,18 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       {/* ROOM STATUS SUMMARY */}
       <Card style={{ padding: spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
             <BedDouble size={20} color={colors.primary} />
-            <View>
+            <View style={{ flex: 1, marginRight: spacing.sm }}>
               <Text style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>Room Status</Text>
-              <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{data?.rooms.available} available / {data?.rooms.occupied} occupied</Text>
+              {isLoading ? (
+                <Skeleton width={180} height={12} borderRadius={4} style={{ marginTop: 4 }} />
+              ) : (
+                <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{data?.rooms.available} available / {data?.rooms.occupied} occupied</Text>
+              )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Rooms')}>
+          <TouchableOpacity disabled={isLoading} onPress={() => navigation.navigate('Rooms')}>
             <Text style={{ fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.bold as any }}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -102,43 +121,63 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       {/* RECENT ACTIVITY */}
       <View>
          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>RECENT ACTIVITES</Text>
+            <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textSecondary }}>RECENT ACTIVITIES</Text>
          </View>
          <Card padding={0} style={{ overflow: 'hidden' }}>
-            {history.map((item, idx) => (
-              <View
-                key={item.id}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', padding: spacing.md,
-                  borderBottomWidth: idx === history.length - 1 ? 0 : 1,
-                  borderBottomColor: colors.divider,
-                }}>
-                <View style={{ width: 80 }}>
-                  <Text style={{ fontSize: 9, fontWeight: fontWeight.bold as any, color: colors.textMuted }}>
-                     {formatPastEventDate(item.updatedAt as any).split('•')[1]}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                   <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
-                     Room {item.bookingRooms?.[0]?.room?.roomNumber || 'N/A'}
-                   </Text>
-                   <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>{item.customer?.name}</Text>
-                </View>
-                <View style={{ 
-                  backgroundColor: item.status === 'CANCELLED' ? colors.error + '15' : colors.success + '15', 
-                  paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 
-                }}>
-                  <Text style={{ 
-                    fontSize: 8, 
-                    color: item.status === 'CANCELLED' ? colors.error : colors.success, 
-                    fontWeight: fontWeight.bold as any 
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, idx) => (
+                <View
+                  key={idx}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', padding: spacing.md,
+                    borderBottomWidth: idx === 2 ? 0 : 1,
+                    borderBottomColor: colors.divider,
+                    gap: spacing.md
                   }}>
-                    {item.status}
-                  </Text>
+                  <Skeleton width={60} height={12} borderRadius={4} />
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Skeleton width={110} height={16} borderRadius={4} />
+                    <Skeleton width={130} height={12} borderRadius={4} />
+                  </View>
+                  <Skeleton width={60} height={14} borderRadius={8} />
                 </View>
-              </View>
-            ))}
-            {history.length === 0 && (
+              ))
+            ) : (
+              history.map((item, idx) => (
+                <View
+                  key={item.id}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', padding: spacing.md,
+                    borderBottomWidth: idx === history.length - 1 ? 0 : 1,
+                    borderBottomColor: colors.divider,
+                  }}>
+                  <View style={{ width: 80 }}>
+                    <Text style={{ fontSize: 9, fontWeight: fontWeight.bold as any, color: colors.textMuted }}>
+                       {formatPastEventDate(item.eventDate as any).split('•')[1]}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                     <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold as any, color: colors.textPrimary }}>
+                       Room {item.bookingRooms?.[0]?.room?.roomNumber || 'N/A'}
+                     </Text>
+                     <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>{item.customer?.name}</Text>
+                  </View>
+                  <View style={{ 
+                    backgroundColor: item.status === 'CANCELLED' ? colors.error + '15' : colors.success + '15', 
+                    paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 
+                  }}>
+                    <Text style={{ 
+                      fontSize: 8, 
+                      color: item.status === 'CANCELLED' ? colors.error : colors.success, 
+                      fontWeight: fontWeight.bold as any 
+                    }}>
+                      {item.status}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+            {!isLoading && history.length === 0 && (
               <View style={{ padding: spacing.xl, alignItems: 'center' }}>
                 <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>No recent activity</Text>
               </View>
@@ -147,4 +186,4 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       </View>
     </View>
   );
-};
+});
