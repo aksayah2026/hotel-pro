@@ -346,7 +346,15 @@ export default function BookingDetailScreen() {
             {booking.customer.aadhaarImage && (
               <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
                 <TouchableOpacity 
-                   onPress={() => Linking.openURL(`${STATIC_URL}${booking.customer?.aadhaarImage}`)}
+                   onPress={() => {
+                     const url = booking.customer?.aadhaarImage;
+                     if (url) {
+                       const fullUrl = url.startsWith('http://') || url.startsWith('https://') 
+                         ? url 
+                         : `${STATIC_URL}${url}`;
+                       Linking.openURL(fullUrl);
+                     }
+                   }}
                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.primary + '10', padding: spacing.sm, borderRadius: radius.md }}
                 >
                   <Download size={20} color={colors.primary} />

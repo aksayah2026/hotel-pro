@@ -88,6 +88,14 @@ export default function CustomerDetailsScreen() {
   }, [form.name, form.mobile, form.email]);
 
   const uploadAadhaarWithCheck = async (uri: string) => {
+    // Check Expo Image URI and ensure it is not undefined/null
+    console.log('[KYC Upload URI Check]', uri);
+    if (!uri) {
+      console.error('[KYC Upload Screen] Image URI is null or undefined!');
+      Alert.alert('Upload Error', 'The selected image file has an invalid URI. Please select it again.');
+      return;
+    }
+
     setUploadingAadhaar(true);
     try {
       // 1. Perform Connectivity Ping
@@ -131,6 +139,11 @@ export default function CustomerDetailsScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
+        console.log('[Gallery Picker URI]', uri);
+        if (!uri) {
+          Alert.alert('Selection Error', 'Failed to retrieve selected image URI.');
+          return;
+        }
         setAadhaarImageUri(uri);
         await uploadAadhaarWithCheck(uri);
       }
@@ -155,6 +168,11 @@ export default function CustomerDetailsScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
+        console.log('[Camera Capture URI]', uri);
+        if (!uri) {
+          Alert.alert('Capture Error', 'Failed to retrieve captured image URI.');
+          return;
+        }
         setAadhaarImageUri(uri);
         await uploadAadhaarWithCheck(uri);
       }

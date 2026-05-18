@@ -36,14 +36,50 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Middleware
-app.use(cors({ 
-  origin: ["http://localhost:5173", "http://localhost:8081", "http://192.168.0.114:8081", "https://admin.hotelpro.aksayah.com"], 
+// Dynamic CORS handling for development, emulators, and production dashboard
+const allowedOrigins = [
+  "http://localhost:5173", 
+  "http://localhost:8081", 
+  "http://192.168.0.114:8081", 
+  "http://192.168.0.112:8081",
+  "https://admin.hotelpro.aksayah.com"
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // 1. Allow native mobile apps/non-browser clients (which don't send an Origin header)
+    if (!origin) return callback(null, true);
+    
+    // 2. Allow official origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // 3. Dynamically allow any local network origin in development for physical device/emulator testing
+    const isLocalNetwork = origin.startsWith('http://localhost') || 
+                          origin.startsWith('http://127.0.0.1') || 
+                          /^http:\/\/192\.168\.\d+\.\d+/.test(origin) ||
+                          /^http:\/\/10\.0\.\d+\.\d+/.test(origin);
+                          
+    if (isLocalNetwork) {
+      return callback(null, true);
+    }
+    
+    // 4. Reject other origins in production for security
+    if (process.env.NODE_ENV === 'production') {
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+    
+    // Default to allow during development
+    return callback(null, true);
+  },
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "CSRF-Token"] 
-}));
-app.options("*", cors());
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));

@@ -2,11 +2,36 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 
-// 🔧 UPDATE THIS to your machine's IP when testing on device
-// export const BASE_URL = 'http://192.168.1.29:5000/api';
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
 
-// Live hosted
-export const BASE_URL = 'https://api.hotelpro.aksayah.com/api';
+// 🔧 Physical machine's IP for testing on same WiFi network
+const DEV_MACHINE_IP = '192.168.0.112';
+
+const getBaseUrl = () => {
+  if (__DEV__) {
+    // If running on a physical device, connect to local machine's IP
+    if (Device.isDevice) {
+      console.log(`[API Config] Running on Physical Device. Connecting to: http://${DEV_MACHINE_IP}:5000/api`);
+      return `http://${DEV_MACHINE_IP}:5000/api`;
+    }
+    
+    // If running on emulator/simulator
+    const emulatorUrl = Platform.select({
+      android: 'http://10.0.2.2:5000/api', // Android emulator loopback
+      ios: 'http://localhost:5000/api',     // iOS simulator loopback
+      default: 'http://localhost:5000/api',
+    });
+    console.log(`[API Config] Running on Emulator/Simulator. Connecting to: ${emulatorUrl}`);
+    return emulatorUrl;
+  }
+
+  // Live hosted production URL
+  // return 'https://api.hotelpro.aksayah.com/api';
+  return `http://${DEV_MACHINE_IP}:5000/api`;
+};
+
+export const BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,

@@ -127,14 +127,14 @@ export default function LoginScreen() {
           </View>
 
           {/* Hint */}
-          <Text style={{
+          {/* <Text style={{
             textAlign: 'center',
             fontSize: fontSize.xs,
             color: colors.textMuted,
             marginTop: spacing.xl,
           }}>
             Demo: 9999999999 / admin123
-          </Text>
+          </Text> */}
 
         </ScrollView>
       </KeyboardAvoidingView>

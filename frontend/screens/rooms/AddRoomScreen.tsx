@@ -27,8 +27,8 @@ export default function AddRoomScreen() {
   const [form, setForm] = useState({
     roomNumber: existingRoom?.roomNumber ?? '',
     type: existingRoom?.typeId ?? '',
-    floor: String(existingRoom?.floor ?? '1'),
-    capacity: String(existingRoom?.capacity ?? '2'),
+    floor: String(existingRoom?.floor ?? ''),
+    capacity: String(existingRoom?.capacity ?? ''),
     baseTariff: String(existingRoom?.baseTariff ?? ''),
     description: existingRoom?.description ?? '',
   });

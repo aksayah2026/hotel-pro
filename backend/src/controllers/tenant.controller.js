@@ -571,7 +571,45 @@ const deleteTenant = async (req, res) => {
     };
 
     // STEP 2: Optional: Storage cleanup or Cloudinary removal should happen here (outside tx)
-    // ...
+    try {
+      const { deleteAsset, extractPublicIdFromUrl } = require('../utils/cloudinary');
+      console.log(`[Tenant Deletion Cleanup] Starting Cloudinary asset cleanup for tenant: ${id}`);
+      
+      // 1. Gather all customer Aadhaar image URLs / Cloudinary IDs from bookings
+      const customersToClean = tenant.bookings
+        .map(b => b.customer)
+        .filter(c => c && c.aadhaarImage);
+        
+      for (const customer of customersToClean) {
+        const publicId = customer.cloudinaryId || extractPublicIdFromUrl(customer.aadhaarImage);
+        if (publicId) {
+          await deleteAsset(publicId);
+        }
+      }
+
+      // 2. Gather and delete all room images
+      if (tenant.rooms && Array.isArray(tenant.rooms)) {
+        for (const room of tenant.rooms) {
+          if (room.images && Array.isArray(room.images)) {
+            for (const imgUrl of room.images) {
+              const publicId = extractPublicIdFromUrl(imgUrl);
+              if (publicId) {
+                await deleteAsset(publicId);
+              }
+            }
+          }
+        }
+      }
+      
+      // 3. Perform a complete, deep Cloudinary directory sweep to purge the isolated tenant folder itself
+      const { deleteTenantFolder } = require('../utils/cloudinary');
+      await deleteTenantFolder(id);
+      
+      console.log(`[Tenant Deletion Cleanup] Cloudinary assets cleanup complete for tenant: ${id}`);
+    } catch (cleanupError) {
+      console.error('[Tenant Deletion Cleanup] Error cleaning up Cloudinary assets:', cleanupError);
+      // Non-blocking: database transaction should proceed even if Cloudinary API is unreachable
+    }
 
     // STEP 3: Run optimized DB transaction with explicit timeout
     await prisma.$transaction(async (tx) => {

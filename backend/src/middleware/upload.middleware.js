@@ -1,34 +1,23 @@
 const multer = require('multer');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
-    'image/heic', 'image/heif'
+    'image/heic', 'image/heif', 'application/pdf'
   ];
   if (allowedTypes.includes(file.mimetype.toLowerCase())) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files (jpeg, jpg, png, webp, heic, heif) are allowed'), false);
+    cb(new Error('Only image files (jpeg, jpg, png, webp, heic, heif) or PDFs are allowed'), false);
   }
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // Strict 5MB limit to prevent oversized uploads and secure system bandwidth
 });
 
 module.exports = upload;

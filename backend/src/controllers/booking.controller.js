@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { sendSmartNotification, sendStaffNotification } = require('../utils/push');
+const { uploadDocument, deleteAsset, extractPublicIdFromUrl } = require('../utils/cloudinary');
 
 // Generate booking number
 const generateBookingNumber = () => {
@@ -279,6 +280,7 @@ const createBooking = async (req, res) => {
           mobile: customer.mobile,
           email: customer.email || null,
           aadhaarImage: customer.aadhaarImage || 'no-image',
+          cloudinaryId: customer.cloudinaryId || extractPublicIdFromUrl(customer.aadhaarImage) || null,
           address: customer.address || null,
         },
       });
@@ -599,17 +601,35 @@ const cancelBooking = async (req, res) => {
 // POST /api/bookings/aadhaar/upload
 const uploadAadhaar = async (req, res) => {
   try {
-    // Temporary debug logging as requested
-    console.log('=== Aadhaar Upload Debug ===');
-    console.log('req.file:', req.file);
-    console.log('req.body:', req.body);
+    console.log('=== Aadhaar Upload Debug (Cloudinary Stream) ===');
+    console.log('req.file metadata:', req.file ? {
+      fieldname: req.file.fieldname,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    } : 'No file');
 
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({ success: true, data: { url: fileUrl, filename: req.file.filename } });
+
+    const tenantId = req.user?.tenantId || 'global';
+    
+    // Upload standard memory buffer to Cloudinary
+    const uploadResult = await uploadDocument(req.file.buffer, tenantId, 'aadhaar');
+    
+    console.log('[Cloudinary Upload] Success:', uploadResult);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        url: uploadResult.secure_url, 
+        publicId: uploadResult.public_id,
+        filename: req.file.originalname
+      } 
+    });
   } catch (error) {
+    console.error('[Cloudinary Upload] Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

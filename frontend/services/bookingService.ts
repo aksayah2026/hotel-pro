@@ -105,14 +105,18 @@ export const bookingService = {
 
   uploadAadhaar: async (uri: string) => {
     console.log('[KYC Upload] Initializing Aadhaar upload for URI:', uri);
-    const formData = new FormData();
     
-    // 1. Sanitize URI and extract filename
-    // Android often uses content:// URIs or provides file paths with query params
+    // 1. Validate that selected image URI is not null or undefined
+    if (!uri) {
+      console.error('[KYC Upload] Validation Failed: Image URI is null or undefined.');
+      throw new Error('Image URI is required for Aadhaar upload.');
+    }
+
+    // 2. Sanitize URI and extract filename
     const cleanUri = uri.split('?')[0];
     let filename = cleanUri.split('/').pop() || `aadhaar-${Date.now()}.jpg`;
     
-    // 2. Dynamically extract extension and detect MIME type
+    // 3. Dynamically extract extension and detect MIME type
     const extMatch = /\.(\w+)$/.exec(filename);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
     
@@ -127,44 +131,63 @@ export const bookingService = {
       filename = `${filename}.${ext}`;
     }
 
-    console.log('[KYC Upload] Metadata detected:', { filename, ext, type, uri });
-    console.log('[KYC Upload] Axios BaseURL:', api.defaults.baseURL);
-    console.log('[KYC Upload] Full URL target:', `${api.defaults.baseURL}/bookings/aadhaar/upload`);
+    // 4. Perform comprehensive FormData validation logging
+    console.log('[KYC Upload] FormData Validation:', {
+      uri: uri,
+      cleanUri: cleanUri,
+      filename: filename,
+      extension: ext,
+      mimeType: type,
+      isValidMime: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(type.toLowerCase()),
+    });
 
-    // 3. Construct FormData specifically for React Native Android compatibility
+    // 5. Construct FormData specifically for React Native Android compatibility
+    const formData = new FormData();
     formData.append('aadhaar', {
       uri: uri, // Use original URI (content:// or file://)
       name: filename,
       type,
     } as any);
 
+    const targetUrl = `${api.defaults.baseURL}/bookings/aadhaar/upload`;
+    console.log('[KYC Upload] Target URL:', targetUrl);
+
     try {
-      console.log('[KYC Upload] Sending request...');
+      console.log('[KYC Upload] Sending request to backend...');
       const response = await api.post<{ success: boolean; data: { url: string } }>('/bookings/aadhaar/upload', formData, {
         headers: { 
           'Accept': 'application/json',
-          // CRITICAL: Do NOT set 'Content-Type': 'multipart/form-data' manually.
+          'Content-Type': 'multipart/form-data', // Proper multipart header as requested
         },
         timeout: 60000, 
       });
       
-      console.log('[KYC Upload] Success:', response.data);
+      console.log('[KYC Upload] Upload successful! Response:', response.data);
       return response;
     } catch (error: any) {
-      console.error('[KYC Upload] ERROR DETAILS:', {
-        message: error.message,
-        code: error.code,
-        isAxiosError: error.isAxiosError,
-        request: error.request ? 'Request object exists' : 'No request object',
-        response: error.response?.data || 'No response data',
-        status: error.response?.status,
-        url: error.config?.url,
-        baseUrl: error.config?.baseURL,
-        method: error.config?.method
-      });
+      console.error('[KYC Upload] CRITICAL ERROR OCCURRED!');
+      console.error('- File URI:', uri);
+      console.error('- Target Request URL:', targetUrl);
       
-      if (error.message === 'Network Error') {
-        console.error('[KYC Upload] Troubleshooting Network Error: Ensure Android Cleartext is enabled and BASE_URL IP is correct.');
+      if (error.response) {
+        // The server responded with a status code outside the 2xx range
+        console.error('- Response Status:', error.response.status);
+        console.error('- Response Headers:', error.response.headers);
+        console.error('- Response Data:', JSON.stringify(error.response.data));
+      } else if (error.request) {
+        // The request was made but no response was received (e.g. ERR_NETWORK)
+        console.error('- Network/No-Response Error (Request initiated, but no response received):', error.request);
+        if (error.message) {
+          console.error('- Network Error Message:', error.message);
+        }
+        console.error('[KYC Upload Guide] Troubleshooting Network Error:\n' +
+          '1. Ensure your physical phone is connected to the SAME WiFi network as your backend PC.\n' +
+          '2. Ensure Android cleartext traffic usesCleartextTraffic is true in app.json.\n' +
+          '3. Check that backend port 5000 is allowed through the firewall on your PC.\n' +
+          '4. Verify access in your mobile browser at: ' + api.defaults.baseURL.replace('/api', '/health'));
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('- Request Setup/Axios Config Error:', error.message);
       }
       
       const backendMessage = error.response?.data?.message;

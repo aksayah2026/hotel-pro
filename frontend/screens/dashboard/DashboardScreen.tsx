@@ -79,7 +79,7 @@ export default function DashboardScreen() {
     try {
       const promises: any[] = [
         dashboardService.getStats(),
-        bookingService.getAll({ status: 'COMPLETED', limit: 5, sort: 'updatedAt' }),
+        bookingService.getAll({ type: 'history', limit: 5, sort: 'updatedAt' }),
         notificationService.getAll(1, 1),
       ];
       

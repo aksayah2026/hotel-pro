@@ -335,9 +335,33 @@ const updateRoomStatus = async (req, res) => {
 // DELETE /api/rooms/:id
 const deleteRoom = async (req, res) => {
   try {
-    await prisma.room.delete({
-      where: { id: req.params.id }
+    const roomId = req.params.id;
+    
+    // 1. Fetch room first to retrieve any attached Cloudinary images
+    const room = await prisma.room.findFirst({
+      where: { id: roomId, tenantId: req.user.tenantId }
     });
+    
+    if (!room) {
+      return res.status(404).json({ success: false, message: 'Room not found' });
+    }
+
+    // 2. Delete attached Cloudinary images from Cloudinary storage
+    if (room.images && Array.isArray(room.images) && room.images.length > 0) {
+      const { deleteAsset, extractPublicIdFromUrl } = require('../utils/cloudinary');
+      for (const imgUrl of room.images) {
+        const publicId = extractPublicIdFromUrl(imgUrl);
+        if (publicId) {
+          await deleteAsset(publicId);
+        }
+      }
+    }
+
+    // 3. Delete from the database
+    await prisma.room.delete({
+      where: { id: roomId }
+    });
+    
     res.json({ success: true, message: 'Room permanently deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
