@@ -97,10 +97,10 @@ export default function CustomerDetailsScreen() {
       const initialSize = initialInfo.exists ? initialInfo.size : 0;
       console.log(`[KYC Upload] Initial size: ${(initialSize / 1024 / 1024).toFixed(2)} MB`);
 
-      // Compress quality and resize to max width of 1280px while maintaining aspect ratio
+      // Compress quality and resize to max width of 1220px while maintaining aspect ratio
       const result = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1280 } }],
+        [{ resize: { width: 1200 } }],
         { 
           compress: 0.6, // Optimize quality between 0.5 and 0.7
           format: ImageManipulator.SaveFormat.JPEG 
