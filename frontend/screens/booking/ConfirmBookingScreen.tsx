@@ -50,6 +50,8 @@ export default function ConfirmBookingScreen() {
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI' | 'CARD'>('CASH');
   const [paymentReference, setPaymentReference] = useState('');
 
+  const showPaymentDetails = paymentType === 'FULL' || (paymentType === 'ADVANCE' && parseFloat(advanceAmount || '0') > 0);
+
   const handlePaymentTypeChange = (type: 'ADVANCE' | 'FULL') => {
     setPaymentType(type);
     if (type === 'FULL') {
@@ -341,41 +343,45 @@ export default function ConfirmBookingScreen() {
             hint={paymentType === 'FULL' ? 'Full booking amount is locked and paid.' : 'Enter advance payment amount or 0.'}
           />
 
-          <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm }}>
-            Payment Mode
-          </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md }}>
-            {(['CASH', 'UPI', 'CARD'] as const).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                onPress={() => setPaymentMode(mode)}
-                style={{
-                  flex: 1,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radius.md,
-                  borderWidth: 1.5,
-                  borderColor: paymentMode === mode ? colors.primary : colors.border,
-                  backgroundColor: paymentMode === mode ? colors.primaryMuted : 'transparent',
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{
-                  color: paymentMode === mode ? colors.primary : colors.textSecondary,
-                  fontWeight: fontWeight.semiBold as any,
-                  fontSize: fontSize.xs
-                }}>
-                  {mode}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {showPaymentDetails && (
+            <View>
+              <Text style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm }}>
+                Payment Mode
+              </Text>
+              <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md }}>
+                {(['CASH', 'UPI', 'CARD'] as const).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    onPress={() => setPaymentMode(mode)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.md,
+                      borderWidth: 1.5,
+                      borderColor: paymentMode === mode ? colors.primary : colors.border,
+                      backgroundColor: paymentMode === mode ? colors.primaryMuted : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{
+                      color: paymentMode === mode ? colors.primary : colors.textSecondary,
+                      fontWeight: fontWeight.semiBold as any,
+                      fontSize: fontSize.xs
+                    }}>
+                      {mode}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          <Input
-            label="Reference (Optional)"
-            placeholder="Transaction ID, Cheque No, etc."
-            value={paymentReference}
-            onChangeText={setPaymentReference}
-          />
+              <Input
+                label="Reference (Optional)"
+                placeholder="Transaction ID, Cheque No, etc."
+                value={paymentReference}
+                onChangeText={setPaymentReference}
+              />
+            </View>
+          )}
         </Card>
 
         {/* Booking Option Selection */}

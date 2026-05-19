@@ -149,7 +149,8 @@ export const bookingService = {
       type,
     } as any);
 
-    const targetUrl = `${api.defaults.baseURL}/bookings/aadhaar/upload`;
+    const baseURL = api.defaults.baseURL || '';
+    const targetUrl = `${baseURL}/bookings/aadhaar/upload`;
     console.log('[KYC Upload] Target URL:', targetUrl);
 
     try {
@@ -184,7 +185,7 @@ export const bookingService = {
           '1. Ensure your physical phone is connected to the SAME WiFi network as your backend PC.\n' +
           '2. Ensure Android cleartext traffic usesCleartextTraffic is true in app.json.\n' +
           '3. Check that backend port 5000 is allowed through the firewall on your PC.\n' +
-          '4. Verify access in your mobile browser at: ' + api.defaults.baseURL.replace('/api', '/health'));
+          '4. Verify access in your mobile browser at: ' + (api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '/health') : 'N/A'));
       } else {
         // Something happened in setting up the request that triggered an Error
         console.error('- Request Setup/Axios Config Error:', error.message);

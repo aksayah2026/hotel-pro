@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert,
-  StatusBar, Image,
+  StatusBar, Image, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Camera, ChevronRight, User, Phone, Mail, MapPin, BedDouble } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { Header } from '../../components/Header';
@@ -87,6 +89,37 @@ export default function CustomerDetailsScreen() {
     });
   }, [form.name, form.mobile, form.email]);
 
+  const compressImage = async (uri: string): Promise<string> => {
+    try {
+      console.log('[KYC Upload] Initiating compression for URI:', uri);
+      
+      const initialInfo = await FileSystem.getInfoAsync(uri);
+      const initialSize = initialInfo.exists ? initialInfo.size : 0;
+      console.log(`[KYC Upload] Initial size: ${(initialSize / 1024 / 1024).toFixed(2)} MB`);
+
+      // Compress quality and resize to max width of 1280px while maintaining aspect ratio
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1280 } }],
+        { 
+          compress: 0.6, // Optimize quality between 0.5 and 0.7
+          format: ImageManipulator.SaveFormat.JPEG 
+        }
+      );
+
+      const compressedInfo = await FileSystem.getInfoAsync(result.uri);
+      const compressedSize = compressedInfo.exists ? compressedInfo.size : 0;
+      console.log(`[KYC Upload] Compressed size: ${(compressedSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log('[KYC Upload] Compressed URI:', result.uri);
+
+      return result.uri;
+    } catch (error) {
+      console.error('[KYC Upload] Error during image compression:', error);
+      // Fallback to original URI if compression fails
+      return uri;
+    }
+  };
+
   const uploadAadhaarWithCheck = async (uri: string) => {
     // Check Expo Image URI and ensure it is not undefined/null
     console.log('[KYC Upload URI Check]', uri);
@@ -109,13 +142,36 @@ export default function CustomerDetailsScreen() {
         return;
       }
 
-      // 2. Proceed with Upload
-      const res = await bookingService.uploadAadhaar(uri);
+      // 2. Compress the image before upload
+      const compressedUri = await compressImage(uri);
+
+      // 3. Check file size after compression to validate
+      const fileInfo = await FileSystem.getInfoAsync(compressedUri);
+      const fileSizeLimit = 10 * 1024 * 1024; // 10MB limit
+      if (fileInfo.exists && fileInfo.size > fileSizeLimit) {
+        Alert.alert(
+          'Image Size Too Large',
+          `The selected image size (${(fileInfo.size / 1024 / 1024).toFixed(2)}MB) exceeds the 10MB limit even after compression. Please upload a smaller image.`
+        );
+        setAadhaarImageUri(null);
+        return;
+      }
+
+      // 4. Proceed with Upload
+      const res = await bookingService.uploadAadhaar(compressedUri);
       setAadhaarUrl(res.data.data.url);
       setErrors(prev => ({ ...prev, aadhaar: undefined }));
     } catch (err: any) {
       console.error('[KYC] Final Upload Error:', err);
-      Alert.alert('Upload Failed', err.message || 'Something went wrong during the upload. Please try again.');
+      
+      let errorMessage = 'Something went wrong during the upload. Please try again.';
+      if (err.response?.status === 413 || err.message?.includes('413')) {
+        errorMessage = 'Image size is too large for the server. Please capture/upload a smaller image.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      Alert.alert('Upload Failed', errorMessage);
       setAadhaarImageUri(null);
       setAadhaarUrl(null);
     } finally {
@@ -134,7 +190,7 @@ export default function CustomerDetailsScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true, 
-        quality: 0.7,
+        quality: 0.5, // Optimize initial library picker quality
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -163,7 +219,7 @@ export default function CustomerDetailsScreen() {
 
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true, 
-        quality: 0.7,
+        quality: 0.5, // Optimize initial camera capture quality
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -344,12 +400,16 @@ export default function CustomerDetailsScreen() {
               />
               {uploadingAadhaar && (
                 <View style={{
-                  position: 'absolute', inset: 0,
-                  backgroundColor: colors.overlay,
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: colors.overlay || 'rgba(0,0,0,0.5)',
                   borderRadius: radius.md,
-                  justifyContent: 'center', alignItems: 'center',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: spacing.xs,
                 }}>
-                  <Text style={{ color: colors.textOnPrimary }}>Uploading…</Text>
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                  <Text style={{ color: colors.textOnPrimary, fontWeight: fontWeight.bold as any }}>Uploading Aadhaar...</Text>
                 </View>
               )}
               {!uploadingAadhaar && aadhaarUrl && (
@@ -364,7 +424,8 @@ export default function CustomerDetailsScreen() {
               )}
               <TouchableOpacity
                 onPress={() => { setAadhaarImageUri(null); setAadhaarUrl(null); }}
-                style={{ marginTop: spacing.sm, alignItems: 'center' }}>
+                disabled={uploadingAadhaar}
+                style={{ marginTop: spacing.sm, alignItems: 'center', opacity: uploadingAadhaar ? 0.5 : 1 }}>
                 <Text style={{ fontSize: fontSize.sm, color: colors.error }}>Remove & Re-upload</Text>
               </TouchableOpacity>
             </View>
@@ -374,13 +435,15 @@ export default function CustomerDetailsScreen() {
                 label="Camera"
                 variant="secondary"
                 onPress={captureAadhaar}
-                icon={<Camera size={16} color={colors.primary} />}
+                disabled={uploadingAadhaar}
+                icon={<Camera size={16} color={uploadingAadhaar ? colors.textMuted : colors.primary} />}
                 style={{ flex: 1 }}
               />
               <Button
                 label="Gallery"
                 variant="secondary"
                 onPress={pickAadhaar}
+                disabled={uploadingAadhaar}
                 style={{ flex: 1 }}
               />
             </View>

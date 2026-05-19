@@ -83,6 +83,14 @@ export default function DashboardScreen() {
     return () => sub.remove();
   }, []);
 
+  // Listen for real-time dashboard refresh signals from other screens
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('REFRESH_DASHBOARD', () => {
+      fetchAll();
+    });
+    return () => sub.remove();
+  }, [fetchAll]);
+
   const fetchRevenue = async (type: string) => {
     if (!isAdmin) return; // Staff shouldn't fetch revenue
     const requestId = ++revenueRequestRef.current;
@@ -136,10 +144,7 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const isStale = Date.now() - lastFetchedAtRef.current > 60000;
-      if (!lastFetchedAtRef.current || isStale) {
-        fetchAll();
-      }
+      fetchAll();
     }, [fetchAll])
   );
 

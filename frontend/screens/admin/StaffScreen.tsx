@@ -27,6 +27,11 @@ export default function StaffScreen() {
     name: '', mobile: '', password: '', role: 'STAFF' as User['role'],
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  const passwordError = passwordTouched && staffForm.password.length > 0 && staffForm.password.length < 6
+    ? 'Password must be at least 6 characters'
+    : undefined;
 
   const fetchData = async () => {
     try {
@@ -46,6 +51,7 @@ export default function StaffScreen() {
 
   const openStaffModal = (user: User | null = null) => {
     setEditingStaff(user);
+    setPasswordTouched(false);
     if (user) {
       setStaffForm({ name: user.name, mobile: user.mobile, password: '', role: user.role });
     } else {
@@ -63,6 +69,12 @@ export default function StaffScreen() {
     if (cleanMobile.length !== 10) {
       return Alert.alert('Validation', 'Mobile number must be exactly 10 digits');
     }
+
+    // Safely prevent invalid API requests if password length < 6
+    if (staffForm.password.length < 6) {
+      return;
+    }
+
     setActionLoading('saveStaff');
     try {
       if (editingStaff) {
@@ -229,8 +241,12 @@ export default function StaffScreen() {
                   label="Password"
                   placeholder="••••••••"
                   value={staffForm.password}
-                  onChangeText={v => setStaffForm(p => ({ ...p, password: v }))}
+                  onChangeText={v => {
+                    setPasswordTouched(true);
+                    setStaffForm(p => ({ ...p, password: v }));
+                  }}
                   secureTextEntry
+                  error={passwordError}
                 />
                 
                 {!editingStaff && (
@@ -263,6 +279,7 @@ export default function StaffScreen() {
                   size="lg" 
                   onPress={handleSaveStaff} 
                   loading={actionLoading === 'saveStaff'} 
+                  disabled={staffForm.password.length < 6}
                   style={{ marginTop: spacing.md }} 
                 />
               </View>

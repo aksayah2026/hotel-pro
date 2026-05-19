@@ -8,27 +8,30 @@ import * as Device from 'expo-device';
 // 🔧 Physical machine's IP for testing on same WiFi network
 const DEV_MACHINE_IP = '192.168.0.112';
 
+// export const API_URL = 'https://api.hotelpro.aksayah.com/api';
+export const API_URL = 'http://192.168.0.112:5000/api';
+
 const getBaseUrl = () => {
+  // Use live hosted production URL as active base
+  return API_URL;
+
+  /* Dev toggle options (if needed for local development):
   if (__DEV__) {
-    // If running on a physical device, connect to local machine's IP
     if (Device.isDevice) {
       console.log(`[API Config] Running on Physical Device. Connecting to: http://${DEV_MACHINE_IP}:5000/api`);
       return `http://${DEV_MACHINE_IP}:5000/api`;
     }
     
-    // If running on emulator/simulator
     const emulatorUrl = Platform.select({
-      android: 'http://10.0.2.2:5000/api', // Android emulator loopback
-      ios: 'http://localhost:5000/api',     // iOS simulator loopback
+      android: 'http://10.0.2.2:5000/api',
+      ios: 'http://localhost:5000/api',
       default: 'http://localhost:5000/api',
     });
     console.log(`[API Config] Running on Emulator/Simulator. Connecting to: ${emulatorUrl}`);
     return emulatorUrl;
   }
-
-  // Live hosted production URL
-  // return 'https://api.hotelpro.aksayah.com/api';
   return `http://${DEV_MACHINE_IP}:5000/api`;
+  */
 };
 
 export const BASE_URL = getBaseUrl();

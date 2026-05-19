@@ -66,13 +66,15 @@ const getDashboardStats = async (req, res) => {
 
     const totalBookings = activeBookings.length;
     const todayIncoming = activeBookings.filter(b => {
-      const time = new Date(b.checkInDate).getTime();
-      return b.status === 'BOOKED' && time >= today.getTime() && time < tomorrow.getTime();
+      const checkInDay = new Date(b.checkInDate);
+      checkInDay.setHours(0, 0, 0, 0);
+      return b.status === 'BOOKED' && checkInDay.getTime() >= today.getTime();
     }).length;
 
     const todayOutgoing = activeBookings.filter(b => {
-      const time = new Date(b.checkOutDate).getTime();
-      return b.status === 'CHECKED_IN' && time >= today.getTime() && time < tomorrow.getTime();
+      const checkOutDay = new Date(b.checkOutDate);
+      checkOutDay.setHours(0, 0, 0, 0);
+      return b.status === 'CHECKED_IN' && checkOutDay.getTime() === today.getTime();
     }).length;
 
     const pendingPayments = activeBookings.filter(b => 

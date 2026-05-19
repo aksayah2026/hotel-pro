@@ -20,10 +20,41 @@ export default function LoginScreen() {
   const [loading, setLoading]   = useState(false);
   const [errors, setErrors]     = useState<{ mobile?: string; password?: string }>({});
 
+  const handleMobileChange = (v: string) => {
+    const cleaned = v.replace(/\D/g, "");
+    setMobile(cleaned);
+    
+    // After user interaction (if error is already showing), validate real-time to correct
+    if (errors.mobile) {
+      if (!cleaned || !/^\d{10}$/.test(cleaned)) {
+        setErrors(prev => ({ ...prev, mobile: 'Enter a valid 10-digit mobile number' }));
+      } else {
+        setErrors(prev => ({ ...prev, mobile: undefined }));
+      }
+    }
+  };
+
+  const handlePasswordChange = (v: string) => {
+    setPassword(v);
+    
+    // After user interaction (if error is already showing), validate real-time to correct
+    if (errors.password) {
+      if (!v) {
+        setErrors(prev => ({ ...prev, password: 'Password is required' }));
+      } else {
+        setErrors(prev => ({ ...prev, password: undefined }));
+      }
+    }
+  };
+
   const validate = () => {
     const e: typeof errors = {};
-    if (!mobile || !/^\d{10}$/.test(mobile)) e.mobile = 'Enter a valid 10-digit mobile number';
-    if (!password || password.length < 6) e.password = 'Password must be at least 6 characters';
+    if (!mobile || !/^\d{10}$/.test(mobile)) {
+      e.mobile = 'Enter a valid 10-digit mobile number';
+    }
+    if (!password) {
+      e.password = 'Password is required';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -99,7 +130,7 @@ export default function LoginScreen() {
               label="Mobile Number"
               placeholder="Enter your mobile number"
               value={mobile}
-              onChangeText={v => setMobile(v.replace(/\D/g, ""))}
+              onChangeText={handleMobileChange}
               keyboardType="phone-pad"
               maxLength={10}
               error={errors.mobile}
@@ -110,7 +141,7 @@ export default function LoginScreen() {
               label="Password"
               placeholder="Enter your password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={handlePasswordChange}
               secureTextEntry
               error={errors.password}
               leftIcon={<Lock size={18} color={colors.textMuted} />}
