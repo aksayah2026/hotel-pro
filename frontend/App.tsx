@@ -50,12 +50,12 @@ const AppInner = () => {
       
       const data = response.notification.request.content.data;
       if (data && navigationRef.isReady()) {
-        if (data.type === 'SUBSCRIPTION_EXPIRY') {
-          console.log('[PUSH TAP] Subscription expiry notification clicked. Directing to Notification center / Renewal context.');
+        if (data.screen) {
+          console.log(`[PUSH TAP] Navigation deep link requested to: ${data.screen}`);
+          (navigationRef as any).navigate(data.screen);
+        } else {
+          (navigationRef as any).navigate('App', { screen: 'Notification' });
         }
-        // INFORMATIONAL ONLY: We navigate to the Notification center list
-        // If the subscription is expired, the RootNavigator will automatically display the SubscriptionExpiredScreen.
-        navigationRef.navigate('App', { screen: 'Notification' } as never);
       }
     });
 

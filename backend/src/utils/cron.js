@@ -1,17 +1,16 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
+const { startOfDay, differenceInCalendarDays } = require('date-fns');
 
-// Run every day at midnight
-cron.schedule('0 0 * * *', async () => {
-  console.log('Running daily subscription check...');
+// Unified cron job that runs every day at 9:00 AM server time
+cron.schedule('0 9 * * *', async () => {
+  console.log('[CRON] Running daily 9:00 AM subscription lifecycle & push notifications check...');
+  
   try {
     const now = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(now.getDate() + 7);
-    const in3Days = new Date();
-    in3Days.setDate(now.getDate() + 3);
+    const today = startOfDay(now);
 
-    // 1. Mark expired subscriptions
+    // 1. Mark expired subscriptions (endDate is prior to now)
     const expiredCount = await prisma.subscription.updateMany({
       where: {
         status: 'ACTIVE',
@@ -19,107 +18,88 @@ cron.schedule('0 0 * * *', async () => {
       },
       data: { status: 'EXPIRED' }
     });
-    console.log(`Marked ${expiredCount.count} subscriptions as EXPIRED`);
-
-    // 1b. Auto-activate QUEUED subscriptions that should start today
-    const queuedToActivate = await prisma.subscription.findMany({
-      where: {
-        status: 'QUEUED',
-        startDate: { lte: now }
-      }
-    });
-
-    for (const sub of queuedToActivate) {
-      await prisma.$transaction([
-        // Expire any existing active subscriptions for this tenant to avoid conflicts
-        prisma.subscription.updateMany({
-          where: {
-            tenantId: sub.tenantId,
-            status: 'ACTIVE',
-            id: { not: sub.id }
-          },
-          data: { status: 'EXPIRED' }
-        }),
-        // Activate the queued subscription
-        prisma.subscription.update({
-          where: { id: sub.id },
-          data: { status: 'ACTIVE' }
-        })
-      ]);
-      console.log(`Auto-activated QUEUED subscription ${sub.id} for Tenant ${sub.tenantId}`);
+    if (expiredCount.count > 0) {
+      console.log(`[CRON] Marked ${expiredCount.count} subscriptions as EXPIRED`);
     }
 
-    // 2. Find subscriptions expiring in 7 days
-    const expiring7 = await prisma.subscription.findMany({
-      where: {
-        status: 'ACTIVE',
-        endDate: { 
-          gte: new Date(nextWeek.setHours(0,0,0,0)), 
-          lte: new Date(nextWeek.setHours(23,59,59,999)) 
-        }
-      },
-      include: { tenant: true }
-    });
-    expiring7.forEach(sub => {
-      console.log(`NOTIFICATION: Tenant ${sub.tenant.businessName} expires in 7 days`);
-      // Here you would call a notification service (Email/SMS)
+    // 2. Auto-activate QUEUED subscriptions that should start today
+    // If multiple queued plans exist for a tenant, activate ONLY the earliest one
+    const activeTenantsList = await prisma.tenant.findMany({
+      where: { isSystem: false }
     });
 
-    // 3. Find subscriptions expiring in 3 days
-    const expiring3 = await prisma.subscription.findMany({
-      where: {
-        status: 'ACTIVE',
-        endDate: { 
-          gte: new Date(in3Days.setHours(0,0,0,0)), 
-          lte: new Date(in3Days.setHours(23,59,59,999)) 
+    for (const tenant of activeTenantsList) {
+      const earliestQueued = await prisma.subscription.findFirst({
+        where: {
+          tenantId: tenant.id,
+          status: 'QUEUED',
+          startDate: { lte: now }
+        },
+        orderBy: {
+          startDate: 'asc'
         }
-      },
-      include: { tenant: true }
-    });
-    expiring3.forEach(sub => {
-      console.log(`NOTIFICATION: Tenant ${sub.tenant.businessName} expires in 3 days`);
-    });
+      });
 
-    // 4. Auto-disable tenants with no active subscription (Optional)
-    // We can just rely on the status check in the middleware, but we can also set isActive = false
-    /*
-    const toDisable = await prisma.tenant.findMany({
+      if (earliestQueued) {
+        await prisma.$transaction([
+          // Expire any existing active subscriptions for this tenant
+          prisma.subscription.updateMany({
+            where: {
+              tenantId: tenant.id,
+              status: 'ACTIVE',
+              id: { not: earliestQueued.id }
+            },
+            data: { status: 'EXPIRED' }
+          }),
+          // Activate the earliest queued subscription
+          prisma.subscription.update({
+            where: { id: earliestQueued.id },
+            data: { status: 'ACTIVE' }
+          })
+        ]);
+        console.log(`[CRON] Auto-activated earliest QUEUED subscription ${earliestQueued.id} for Tenant ${tenant.id}`);
+      }
+    }
+
+    // 3. Optional Auto Deactivation
+    // If a tenant has no ACTIVE subscription and no QUEUED subscription, set isActive = false
+    const nonSystemTenants = await prisma.tenant.findMany({
       where: {
         isActive: true,
-        isSystem: false,
-        subscriptions: { every: { endDate: { lt: now } } }
+        isBlocked: false,
+        isSystem: false
+      },
+      include: {
+        subscriptions: true
       }
     });
-    for (const t of toDisable) {
-      await prisma.tenant.update({ where: { id: t.id }, data: { isActive: false } });
+
+    for (const tenant of nonSystemTenants) {
+      const hasActive = tenant.subscriptions.some(s => s.status === 'ACTIVE');
+      const hasQueued = tenant.subscriptions.some(s => s.status === 'QUEUED');
+      if (!hasActive && !hasQueued) {
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { isActive: false }
+        });
+        console.log(`[CRON] Auto-deactivated Tenant ${tenant.businessName} (ID: ${tenant.id}) due to no active/queued subscription.`);
+      }
     }
-    */
 
-  } catch (error) {
-    console.error('Subscription cron failed:', error);
-  }
-});
-
-// Run every day at 9:00 AM for subscription expiry push notifications
-cron.schedule('0 9 * * *', async () => {
-  console.log('[PUSH CRON] Running daily subscription expiry push notifications check at 9:00 AM...');
-  try {
+    // 4. Send Expiry Push Notifications
     const { sendPushNotification } = require('./push');
-    const now = new Date();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
 
-    const endOfTwoDaysFromNow = new Date();
-    endOfTwoDaysFromNow.setDate(startOfToday.getDate() + 2);
-    endOfTwoDaysFromNow.setHours(23, 59, 59, 999);
+    // Query active subscriptions ending soon (Optimization: filter within next 5 days to cover the 5-day, 2-day, and 0-day marks)
+    const endOfFiveDaysFromNow = new Date();
+    endOfFiveDaysFromNow.setDate(today.getDate() + 5);
+    endOfFiveDaysFromNow.setHours(23, 59, 59, 999);
 
-    // 1. Query ACTIVE subscriptions ending within the next 2 days (today, tomorrow, or in 2 days)
     const activeSubs = await prisma.subscription.findMany({
       where: {
         status: 'ACTIVE',
         endDate: {
-          gte: startOfToday,
-          lte: endOfTwoDaysFromNow
+          gte: today,
+          lte: endOfFiveDaysFromNow
         },
         tenant: {
           isActive: true,
@@ -142,48 +122,50 @@ cron.schedule('0 9 * * *', async () => {
       }
     });
 
-    console.log(`[PUSH CRON] Found ${activeSubs.length} subscriptions expiring in the next 2 days.`);
+    console.log(`[CRON] Found ${activeSubs.length} subscriptions ending within the next 5 days to check for notifications.`);
 
     for (const sub of activeSubs) {
-      // 2. Edge Case Check: If there's already a renewal or queued plan, skip notifying
+      // 4a. Edge Case Check: If there's a future queued plan starting after now, skip notifying
       const queuedPlan = await prisma.subscription.findFirst({
         where: {
           tenantId: sub.tenantId,
-          status: 'QUEUED'
+          status: 'QUEUED',
+          startDate: {
+            gt: now
+          }
         }
       });
       if (queuedPlan) {
-        console.log(`[PUSH CRON] Tenant ${sub.tenant.businessName} has a QUEUED renewal plan. Skipping expiry notifications.`);
+        console.log(`[CRON] Tenant ${sub.tenant.businessName} has a future QUEUED renewal plan. Skipping expiry notifications.`);
         continue;
       }
 
-      // 3. Calculate exact diff days
-      const subEndDate = new Date(sub.endDate);
-      subEndDate.setHours(0, 0, 0, 0);
-      const diffTime = subEndDate.getTime() - startOfToday.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      // 4b. Calculate difference in calendar days using date-fns (timezone-safe)
+      const expiryDate = startOfDay(new Date(sub.endDate));
+      const diffDays = differenceInCalendarDays(expiryDate, today);
 
       let notificationType = '';
       let title = '';
       let message = '';
 
-      if (diffDays === 2) {
+      if (diffDays === 5) {
+        notificationType = 'FIVE_DAYS';
+        title = 'Subscription Expiring Soon';
+        message = 'Your HotelPro subscription expires in 5 days. Renew early to avoid service interruption.';
+      } else if (diffDays === 2) {
         notificationType = 'TWO_DAYS';
         title = 'Subscription Expiring Soon';
-        message = 'Your HotelPro subscription expires in 2 days. Please renew to avoid service interruption.';
-      } else if (diffDays === 1) {
-        notificationType = 'ONE_DAY';
-        title = 'Subscription Expires Tomorrow';
-        message = 'Your HotelPro subscription expires tomorrow. Renew now to continue uninterrupted access.';
+        message = 'Your HotelPro subscription expires in 2 days. Please renew soon to continue uninterrupted access.';
       } else if (diffDays === 0) {
-        notificationType = 'EXPIRED';
-        title = 'Subscription Expired';
-        message = 'Your HotelPro subscription has expired today. Please renew immediately to continue using services.';
+        notificationType = 'EXPIRING_TODAY';
+        title = 'Subscription Expires Today';
+        message = 'Your HotelPro subscription expires today. Renew immediately to continue using HotelPro services.';
       } else {
+        // Only notify on 5 days, 2 days, and today
         continue;
       }
 
-      // 4. Duplicate prevention log check
+      // 4c. Unique log check to prevent duplicates
       const existingLog = await prisma.subscriptionNotificationLog.findFirst({
         where: {
           tenantId: sub.tenantId,
@@ -193,25 +175,26 @@ cron.schedule('0 9 * * *', async () => {
       });
 
       if (existingLog) {
-        console.log(`[PUSH CRON] Notification ${notificationType} already logged/sent for subscription ${sub.id} (Tenant ${sub.tenant.businessName})`);
+        console.log(`[CRON] Expiry notification ${notificationType} already sent for subscription ${sub.id} (Tenant ${sub.tenant.businessName})`);
         continue;
       }
 
-      // 5. Filter out STAFF users (only notify TENANT_ADMIN)
+      // 4d. Target users (only notify TENANT_ADMIN users)
       const targetUserIds = sub.tenant.users.map(u => u.id);
       if (targetUserIds.length === 0) {
-        console.log(`[PUSH CRON] No active TENANT_ADMIN users found for Tenant ${sub.tenant.businessName}. Skipping.`);
+        console.log(`[CRON] No active TENANT_ADMIN users found for Tenant ${sub.tenant.businessName}. Skipping.`);
         continue;
       }
 
-      console.log(`[PUSH CRON] Sending '${title}' notification to ${targetUserIds.length} admins of Tenant ${sub.tenant.businessName}...`);
+      console.log(`[CRON] Dispatched '${title}' push notification to ${targetUserIds.length} admins of Tenant ${sub.tenant.businessName}`);
 
-      // 6. Send push notification & log
+      // 4e. Send push with mobile deep link payload & save to DB
       await sendPushNotification(targetUserIds, title, message, 'SUBSCRIPTION_EXPIRY', {
-        subscriptionId: sub.id,
-        expiryDate: sub.endDate.toISOString()
+        screen: 'SubscriptionRenewal',
+        subscriptionId: sub.id
       });
 
+      // 4f. Save to notification logs
       await prisma.subscriptionNotificationLog.create({
         data: {
           tenantId: sub.tenantId,
@@ -220,12 +203,12 @@ cron.schedule('0 9 * * *', async () => {
         }
       });
 
-      console.log(`[PUSH CRON] Successfully logged and sent ${notificationType} notification to Tenant ${sub.tenant.businessName}.`);
+      console.log(`[CRON] Successfully completed push notify and saved log for ${notificationType} to Tenant ${sub.tenant.businessName}.`);
     }
 
   } catch (error) {
-    console.error('[PUSH CRON] Subscription expiry push notification job failed:', error);
+    console.error('[CRON] Subscription lifecycle cron job failed:', error);
   }
 });
 
-console.log('Subscription cron jobs scheduled.');
+console.log('Unified 9:00 AM subscription lifecycle cron job scheduled.');

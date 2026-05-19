@@ -113,6 +113,7 @@ const AuthenticatedNavigator = () => (
     <Stack.Screen name="Staff"           component={StaffScreen} />
     <Stack.Screen name="PastEvents"      component={PastEventsScreen} />
     <Stack.Screen name="Notification"    component={NotificationScreen} />
+    <Stack.Screen name="SubscriptionRenewal" component={SubscriptionExpiredScreen} />
   </Stack.Navigator>
 );
 
