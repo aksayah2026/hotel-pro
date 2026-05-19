@@ -17,5 +17,7 @@ router.put('/:id', authenticate, requireSuperAdmin, tenantController.updateTenan
 router.patch('/:id/status', authenticate, requireSuperAdmin, tenantController.updateTenantStatus);
 router.delete('/:id', authenticate, requireSuperAdmin, tenantController.deleteTenant);
 router.post('/renew', authenticate, requireSuperAdmin, tenantController.renewSubscription);
+router.post('/:id/upgrade-plan', authenticate, requireSuperAdmin, tenantController.upgradePlan);
+router.get('/:id/subscriptions', authenticate, requireSuperAdmin, tenantController.getTenantSubscriptions);
 
 module.exports = router;

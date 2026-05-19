@@ -253,11 +253,12 @@ const getAllTenants = async (req, res) => {
           createdAt: true,
           subscriptions: {
             orderBy: { endDate: 'desc' },
-            take: 1,
+            take: 5,
             select: {
               status: true,
+              startDate: true,
               endDate: true,
-              plan: { select: { name: true } }
+              plan: { select: { id: true, name: true, isTrial: true } }
             }
           }
         },
@@ -700,9 +701,124 @@ const updateTenantStatus = async (req, res) => {
   }
 };
 
+// POST /api/tenants/:id/upgrade-plan
+const upgradePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId, discount = 0, paymentMethod = 'CASH' } = req.body;
+
+    const tenant = await prisma.tenant.findUnique({ where: { id } });
+    if (!tenant) return res.status(404).json({ success: false, message: 'Tenant not found' });
+
+    const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
+    if (!plan) return res.status(400).json({ success: false, message: 'Invalid plan selected' });
+
+    const numDiscount = parseFloat(discount) || 0;
+    if (numDiscount < 0) {
+      return res.status(400).json({ success: false, message: 'Discount cannot be negative' });
+    }
+    if (numDiscount > plan.price) {
+      return res.status(400).json({ success: false, message: `Discount cannot exceed plan price (₹${plan.price})` });
+    }
+
+    const now = new Date();
+
+    // Find the latest subscription (could be ACTIVE or QUEUED)
+    const latestSub = await prisma.subscription.findFirst({
+      where: {
+        tenantId: id,
+        status: { in: ['ACTIVE', 'QUEUED'] }
+      },
+      orderBy: { endDate: 'desc' }
+    });
+
+    let startDate = now;
+    let status = 'ACTIVE';
+
+    if (latestSub && new Date(latestSub.endDate) > now) {
+      startDate = new Date(latestSub.endDate);
+      status = 'QUEUED';
+    }
+
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + plan.durationInDays);
+
+    const finalAmount = Math.max(0, plan.price - numDiscount);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Create new subscription
+      const subscription = await tx.subscription.create({
+        data: {
+          tenantId: id,
+          planId: plan.id,
+          startDate,
+          endDate,
+          status,
+        },
+      });
+
+      if (finalAmount > 0) {
+        const saasPayment = await tx.saaSPayment.create({
+          data: {
+            tenantId: id,
+            planId: plan.id,
+            amount: finalAmount,
+            status: 'COMPLETED',
+            method: paymentMethod,
+            paidAt: now,
+          }
+        });
+
+        await tx.saaSInvoice.create({
+          data: {
+            tenantId: id,
+            paymentId: saasPayment.id,
+            invoiceNumber: `INV-${Date.now()}-${id.slice(0, 4)}`,
+            amount: finalAmount * 0.82,
+            tax: finalAmount * 0.18,
+            total: finalAmount,
+            status: 'PAID'
+          }
+        });
+      }
+
+      return subscription;
+    });
+
+    await logAction(req.user.id, 'UPGRADE_SUBSCRIPTION', 'TENANT', id, { 
+      planName: plan.name, 
+      startDate, 
+      endDate, 
+      status, 
+      amount: finalAmount 
+    }, id);
+
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/tenants/:id/subscriptions
+const getTenantSubscriptions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const subscriptions = await prisma.subscription.findMany({
+      where: { tenantId: id },
+      include: { plan: true },
+      orderBy: { startDate: 'desc' }
+    });
+
+    res.json({ success: true, data: subscriptions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getPlans, createPlan, createTenant,
   getAllTenants, getTenantById, getTenantActivity,
   renewSubscription,
-  updateTenant, updateTenantStatus, deleteTenant
+  updateTenant, updateTenantStatus, deleteTenant,
+  upgradePlan, getTenantSubscriptions
 };

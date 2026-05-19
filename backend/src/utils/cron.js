@@ -21,6 +21,34 @@ cron.schedule('0 0 * * *', async () => {
     });
     console.log(`Marked ${expiredCount.count} subscriptions as EXPIRED`);
 
+    // 1b. Auto-activate QUEUED subscriptions that should start today
+    const queuedToActivate = await prisma.subscription.findMany({
+      where: {
+        status: 'QUEUED',
+        startDate: { lte: now }
+      }
+    });
+
+    for (const sub of queuedToActivate) {
+      await prisma.$transaction([
+        // Expire any existing active subscriptions for this tenant to avoid conflicts
+        prisma.subscription.updateMany({
+          where: {
+            tenantId: sub.tenantId,
+            status: 'ACTIVE',
+            id: { not: sub.id }
+          },
+          data: { status: 'EXPIRED' }
+        }),
+        // Activate the queued subscription
+        prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'ACTIVE' }
+        })
+      ]);
+      console.log(`Auto-activated QUEUED subscription ${sub.id} for Tenant ${sub.tenantId}`);
+    }
+
     // 2. Find subscriptions expiring in 7 days
     const expiring7 = await prisma.subscription.findMany({
       where: {

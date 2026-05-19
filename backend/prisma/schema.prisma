@@ -40,7 +40,9 @@ enum PaymentMode {
 
 enum SubscriptionStatus {
   ACTIVE
+  QUEUED
   EXPIRED
+  CANCELLED
   INACTIVE
 }
 

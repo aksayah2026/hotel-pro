@@ -9,6 +9,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 
+import CustomModal from '../components/CustomModal';
+
 import { 
   Table, 
   Tag, 
@@ -16,7 +18,6 @@ import {
   Button, 
   Drawer, 
   Descriptions, 
-  Modal, 
   Form, 
   Input, 
   Select, 
@@ -96,17 +97,23 @@ export default function Tenants() {
   // History states
   const [payments, setPayments] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   // Drawer & Modal states
   const [viewVisible, setViewVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [deleteVisible, setDeleteVisible] = useState(false);
+  const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   
   const [form] = Form.useForm();
   const [deleteForm] = Form.useForm();
+  const [upgradeForm] = Form.useForm();
+
+  const [upgradePlanPrice, setUpgradePlanPrice] = useState(0);
+  const [upgradeDiscount, setUpgradeDiscount] = useState(0);
 
   const fetchTenants = async (page = 1, pageSize = 10) => {
     setLoading(true);
@@ -169,14 +176,16 @@ export default function Tenants() {
     setViewVisible(true);
     setHistoryLoading(true);
     try {
-      const [tenantRes, payRes, logRes] = await Promise.all([
+      const [tenantRes, payRes, logRes, subRes] = await Promise.all([
         api.get(`/tenants/${record.id}`),
         api.get(`/saas-payments/tenant/${record.id}`),
-        api.get(`/audit-logs?tenantId=${record.id}`)
+        api.get(`/audit-logs?tenantId=${record.id}`),
+        api.get(`/tenants/${record.id}/subscriptions`)
       ]);
       setSelectedTenant(tenantRes.data.data);
       setPayments(payRes.data.data);
       setLogs(logRes.data.data);
+      setSubscriptions(subRes.data.data || []);
     } catch (err) {
       console.error('Failed to fetch history');
     } finally {
@@ -186,17 +195,37 @@ export default function Tenants() {
 
   const handleEdit = (record) => {
     setSelectedTenant(record);
-    const latestSub = record.subscriptions?.[0];
     form.setFieldsValue({
       businessName: record.businessName,
       ownerName: record.ownerName,
       address: record.address,
       phoneNumber: record.phoneNumber,
       mobile: record.mobile,
-      planId: latestSub?.planId,
       password: ""
     });
     setEditVisible(true);
+  };
+
+  const handleUpgradeClick = (record) => {
+    setSelectedTenant(record);
+    upgradeForm.resetFields();
+    setUpgradePlanPrice(0);
+    setUpgradeDiscount(0);
+    setUpgradeVisible(true);
+  };
+
+  const onUpgradePlan = async (values) => {
+    setSubmitLoading(true);
+    try {
+      await api.post(`/tenants/${selectedTenant.id}/upgrade-plan`, values);
+      message.success('Plan upgraded / queued successfully!');
+      setUpgradeVisible(false);
+      fetchTenants();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Upgrade failed');
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   const handleDeleteClick = (record) => {
@@ -296,13 +325,14 @@ export default function Tenants() {
         const isSystem = record.isSystem || record.businessName === 'HotelPro Systems';
         if (isSystem) return <Tag color="gold">Unlimited</Tag>;
 
-        const sub = record.subscriptions?.[0];
-        const plan = sub?.plan;
+        const activeSub = record.subscriptions?.find((s: any) => s.status === 'ACTIVE') || record.subscriptions?.[0];
+        const plan = activeSub?.plan;
         
         if (!plan) return <Tag>N/A</Tag>;
 
         let color = plan.isTrial ? 'blue' : 'green';
-        if (record.status === 'EXPIRED') color = 'red';
+        if (activeSub.status === 'EXPIRED') color = 'red';
+        else if (activeSub.status === 'QUEUED') color = 'orange';
 
         return <Tag color={color}>{plan.name}</Tag>;
       }
@@ -314,8 +344,8 @@ export default function Tenants() {
         const isSystem = record.isSystem || record.businessName === 'HotelPro Systems';
         if (isSystem) return <Tag color="blue">Unlimited</Tag>;
         
-        const sub = record.subscriptions?.[0];
-        return sub ? new Date(sub.endDate).toLocaleDateString() : '-';
+        const activeSub = record.subscriptions?.find((s: any) => s.status === 'ACTIVE') || record.subscriptions?.[0];
+        return activeSub ? new Date(activeSub.endDate).toLocaleDateString() : '-';
       }
     },
     {
@@ -352,6 +382,14 @@ export default function Tenants() {
               <Button 
                 icon={<EditOutlined />} 
                 onClick={() => !isSystem && handleEdit(record)}
+                disabled={isSystem}
+              />
+            </Tooltip>
+            <Tooltip title={isSystem ? "System tenant" : "Upgrade Plan"}>
+              <Button 
+                type="dashed"
+                icon={<DollarCircleOutlined style={{ color: isSystem ? undefined : '#52c41a' }} />} 
+                onClick={() => !isSystem && handleUpgradeClick(record)}
                 disabled={isSystem}
               />
             </Tooltip>
@@ -496,17 +534,86 @@ export default function Tenants() {
                       </Descriptions.Item>
                     </Descriptions>
 
-                    <Descriptions title="Subscription Details" bordered column={1}>
-                      {selectedTenant.subscriptions?.[0] ? (
-                        <>
-                          <Descriptions.Item label="Current Plan">{selectedTenant.subscriptions[0].plan?.name}</Descriptions.Item>
-                          <Descriptions.Item label="Expiry Date">{new Date(selectedTenant.subscriptions[0].endDate).toLocaleDateString()}</Descriptions.Item>
-                        </>
-                      ) : (
-                        <Descriptions.Item label="Status">No Active Subscription</Descriptions.Item>
-                      )}
+                    <Descriptions title="Subscription Lifecycle & Queue" bordered column={1}>
+                      <Descriptions.Item label="Active Subscription">
+                        {subscriptions.find(s => s.status === 'ACTIVE') ? (
+                          <Space>
+                            <Tag color="green" style={{ fontWeight: 'bold' }}>
+                              {subscriptions.find(s => s.status === 'ACTIVE').plan?.name}
+                            </Tag>
+                            <Text type="secondary">
+                              (Ends: {dayjs(subscriptions.find(s => s.status === 'ACTIVE').endDate).format('DD MMM YYYY')})
+                            </Text>
+                          </Space>
+                        ) : (
+                          <Tag color="red">No Active Plan</Tag>
+                        )}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Next Queued Plan(s)">
+                        {subscriptions.filter(s => s.status === 'QUEUED').length > 0 ? (
+                          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            {[...subscriptions.filter(s => s.status === 'QUEUED')]
+                              .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                              .map((qs) => (
+                                <Space key={qs.id}>
+                                  <Tag color="orange" style={{ fontWeight: 'bold' }}>{qs.plan?.name}</Tag>
+                                  <Text type="secondary">
+                                    Starts: {dayjs(qs.startDate).format('DD MMM YYYY')} · Ends: {dayjs(qs.endDate).format('DD MMM YYYY')}
+                                  </Text>
+                                </Space>
+                              ))}
+                          </Space>
+                        ) : (
+                          <Text type="secondary">No future plans scheduled in queue</Text>
+                        )}
+                      </Descriptions.Item>
                     </Descriptions>
                   </Space>
+                )
+              },
+              {
+                key: 'subscriptions',
+                label: <span><ContainerOutlined /> Subscriptions</span>,
+                children: (
+                  <Table 
+                    dataSource={subscriptions} 
+                    loading={historyLoading}
+                    rowKey="id"
+                    columns={[
+                      { title: 'Plan Name', dataIndex: ['plan', 'name'], key: 'planName' },
+                      { 
+                        title: 'Duration', 
+                        dataIndex: ['plan', 'durationInDays'], 
+                        key: 'duration',
+                        render: d => `${d} Days`
+                      },
+                      { 
+                        title: 'Start Date', 
+                        dataIndex: 'startDate', 
+                        key: 'startDate',
+                        render: d => dayjs(d).format('DD MMM YYYY')
+                      },
+                      { 
+                        title: 'End Date', 
+                        dataIndex: 'endDate', 
+                        key: 'endDate',
+                        render: d => dayjs(d).format('DD MMM YYYY')
+                      },
+                      { 
+                        title: 'Status', 
+                        dataIndex: 'status', 
+                        key: 'status',
+                        render: (status) => {
+                          let color = 'default';
+                          if (status === 'ACTIVE') color = 'green';
+                          else if (status === 'QUEUED') color = 'orange';
+                          else if (status === 'EXPIRED') color = 'red';
+                          else if (status === 'CANCELLED') color = 'gray';
+                          return <Tag color={color} style={{ fontWeight: 'bold' }}>{status}</Tag>;
+                        }
+                      }
+                    ]}
+                  />
                 )
               },
               {
@@ -627,7 +734,7 @@ export default function Tenants() {
 
       {/* EDIT MODAL */}
       {editVisible && (
-      <Modal
+      <CustomModal
         title="Edit Tenant Details"
         open={editVisible}
         onCancel={() => {
@@ -703,29 +810,119 @@ export default function Tenants() {
             <Input.Password placeholder="Enter new password" />
           </Form.Item>
 
-          <Title level={5} style={{ marginTop: '16px' }}>Subscription</Title>
-          <Form.Item name="planId" label="Assign New Plan (Optional)">
-            <Select placeholder="Select a plan to extend/change">
-              <Select.Option value={null}>No change</Select.Option>
-              {plans.map(plan => (
-                <Select.Option key={plan.id} value={plan.id}>
-                  <Space>
-                    {plan.name} - {plan.durationInDays} Days (₹{plan.price})
-                    {plan.isTrial && <Tag color="green">Free Trial</Tag>}
-                  </Space>
-                </Select.Option>
-              ))}
-
-            </Select>
-          </Form.Item>
-
         </Form>
-      </Modal>
+      </CustomModal>
+      )}
+
+      {/* UPGRADE PLAN MODAL */}
+      {upgradeVisible && (
+      <CustomModal
+        title={<Title level={4} style={{ margin: 0 }}>💼 Upgrade Tenant Plan</Title>}
+        open={upgradeVisible}
+        onCancel={() => setUpgradeVisible(false)}
+        onOk={() => upgradeForm.submit()}
+        confirmLoading={submitLoading}
+        width={500}
+        okText="Confirm & Process Upgrade"
+      >
+        {selectedTenant && (
+          <Form
+            form={upgradeForm}
+            layout="vertical"
+            onFinish={onUpgradePlan}
+            initialValues={{ discount: 0, paymentMethod: 'CASH' }}
+          >
+            <div style={{ backgroundColor: '#f0f5ff', border: '1px solid #adc6ff', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+              <Text strong>Upgrading plan for: </Text>
+              <Text underline>{selectedTenant.businessName}</Text>
+              <div style={{ marginTop: '8px' }}>
+                <Text type="secondary">Current Active Plan: </Text>
+                <Tag color="green">
+                  {selectedTenant.subscriptions?.[0]?.plan?.name || 'N/A'}
+                </Tag>
+              </div>
+            </div>
+
+            <Form.Item 
+              name="planId" 
+              label="Select Upgrade Plan"
+              rules={[{ required: true, message: 'Please select a plan to upgrade to' }]}
+            >
+              <Select 
+                placeholder="Choose plan..."
+                dropdownStyle={{ zIndex: 10000 }}
+                onChange={(val) => {
+                  const plan = plans.find(p => p.id === val);
+                  setUpgradePlanPrice(plan ? plan.price : 0);
+                }}
+              >
+                {plans.map(plan => (
+                  <Select.Option key={plan.id} value={plan.id}>
+                    {plan.name} - {plan.durationInDays} Days (₹{plan.price})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Form.Item label="Plan Price (₹)">
+                <Input value={`₹${upgradePlanPrice}`} disabled />
+              </Form.Item>
+              <Form.Item 
+                name="discount" 
+                label="Apply Discount (₹)"
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      const numVal = parseFloat(value) || 0;
+                      if (numVal < 0) return Promise.reject('Discount cannot be negative');
+                      if (numVal > upgradePlanPrice) return Promise.reject(`Discount cannot exceed plan price (₹${upgradePlanPrice})`);
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
+              >
+                <Input 
+                  type="number" 
+                  onChange={(e) => setUpgradeDiscount(parseFloat(e.target.value) || 0)}
+                />
+              </Form.Item>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Form.Item label="Final Collectible (₹)">
+                <Input 
+                  value={`₹${Math.max(0, upgradePlanPrice - upgradeDiscount)}`} 
+                  disabled 
+                  style={{ fontWeight: 'bold', color: '#52c41a' }} 
+                />
+              </Form.Item>
+              <Form.Item 
+                name="paymentMethod" 
+                label="Payment Method"
+                rules={[{ required: true }]}
+              >
+                <Select dropdownStyle={{ zIndex: 10000 }}>
+                  <Select.Option value="CASH">Cash</Select.Option>
+                  <Select.Option value="UPI">UPI / QR</Select.Option>
+                  <Select.Option value="CARD">Card Payment</Select.Option>
+                </Select>
+              </Form.Item>
+            </div>
+            
+            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '12px', marginTop: '12px' }}>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                💡 **SaaS Upgrade Logic:** If the tenant has an active subscription, the new plan will start automatically upon the expiration of the current plan (placed in Queue).
+              </Text>
+            </div>
+          </Form>
+        )}
+      </CustomModal>
       )}
 
       {/* DELETE MODAL (PERMANENT) */}
       {deleteVisible && (
-      <Modal
+      <CustomModal
         title={<span><ExclamationCircleOutlined style={{ color: '#ff4d4f', marginRight: '8px' }} /> Permanent Hard Delete</span>}
         open={deleteVisible}
         onCancel={() => setDeleteVisible(false)}
@@ -770,7 +967,7 @@ export default function Tenants() {
             </Form>
           </Space>
         )}
-      </Modal>
+      </CustomModal>
       )}
     </div>
   );
