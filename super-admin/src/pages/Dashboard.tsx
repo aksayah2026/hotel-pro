@@ -207,6 +207,34 @@ export default function Dashboard() {
     }
   ];
 
+  // Group the expiring soon list
+  const groupedExpiring = {
+    today: [] as any[],
+    tomorrow: [] as any[],
+    next2Days: [] as any[],
+    upcoming: [] as any[]
+  };
+
+  if (data?.expiringSoon) {
+    data.expiringSoon.forEach((item: any) => {
+      const sub = item.subscriptions?.[0];
+      if (!sub) return;
+      const now = dayjs().startOf('day');
+      const end = dayjs(sub.endDate).startOf('day');
+      const diffDays = end.diff(now, 'day');
+
+      if (diffDays === 0) {
+        groupedExpiring.today.push(item);
+      } else if (diffDays === 1) {
+        groupedExpiring.tomorrow.push(item);
+      } else if (diffDays === 2) {
+        groupedExpiring.next2Days.push(item);
+      } else if (diffDays > 2 && diffDays <= 7) {
+        groupedExpiring.upcoming.push(item);
+      }
+    });
+  }
+
   return (
     <div style={{ padding: '0 0 24px 0' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
@@ -298,29 +326,78 @@ export default function Dashboard() {
         </Col>
         <Col xs={24} lg={8}>
           <Card
-            title="Expiring Soon (7 Days)"
+            title="Subscriptions Expiring Soon"
             variant="borderless"
             extra={<ClockCircleOutlined style={{ color: '#faad14' }} />}
             styles={{ body: { padding: '12px 24px' } }}
           >
-            <Flex vertical gap="small">
+            <Flex vertical gap="middle" style={{ maxHeight: '310px', overflowY: 'auto' }}>
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '24px' }}><Spin /></div>
               ) : data.expiringSoon.length > 0 ? (
-                data.expiringSoon.map((item: any) => (
-                  <Flex key={item.id} align="center" justify="space-between" style={{ padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-                    <Flex gap="middle" align="center">
-                      <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#fffbe6', color: '#faad14' }} />
-                      <div>
-                        <Text strong style={{ display: 'block' }}>{item.businessName}</Text>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          Expires: {new Date(item.subscriptions[0].endDate).toLocaleDateString()}
-                        </Text>
+                <Flex vertical gap="middle" style={{ width: '100%' }}>
+                  {/* Today Section */}
+                  {groupedExpiring.today.length > 0 && (
+                    <div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Tag color="red" style={{ fontWeight: 'bold' }}>EXPIRES TODAY ({groupedExpiring.today.length})</Tag>
                       </div>
-                    </Flex>
-                    <Tag color="warning">Renew</Tag>
-                  </Flex>
-                ))
+                      {groupedExpiring.today.map((item: any) => (
+                        <Flex key={item.id} align="center" justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
+                          <Text strong>{item.businessName}</Text>
+                          <Tag color="error" style={{ fontSize: '10px' }}>Urgent Action</Tag>
+                        </Flex>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tomorrow Section */}
+                  {groupedExpiring.tomorrow.length > 0 && (
+                    <div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Tag color="volcano" style={{ fontWeight: 'bold' }}>EXPIRES TOMORROW ({groupedExpiring.tomorrow.length})</Tag>
+                      </div>
+                      {groupedExpiring.tomorrow.map((item: any) => (
+                        <Flex key={item.id} align="center" justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
+                          <Text strong>{item.businessName}</Text>
+                          <Tag color="warning" style={{ fontSize: '10px' }}>Renew</Tag>
+                        </Flex>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Next 2 Days Section */}
+                  {groupedExpiring.next2Days.length > 0 && (
+                    <div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Tag color="orange" style={{ fontWeight: 'bold' }}>EXPIRES IN 2 DAYS ({groupedExpiring.next2Days.length})</Tag>
+                      </div>
+                      {groupedExpiring.next2Days.map((item: any) => (
+                        <Flex key={item.id} align="center" justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
+                          <Text strong>{item.businessName}</Text>
+                          <Tag color="orange" style={{ fontSize: '10px' }}>Remind</Tag>
+                        </Flex>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Other upcoming Section */}
+                  {groupedExpiring.upcoming.length > 0 && (
+                    <div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Tag color="blue" style={{ fontWeight: 'bold' }}>EXPIRING SOON (3-7 DAYS) ({groupedExpiring.upcoming.length})</Tag>
+                      </div>
+                      {groupedExpiring.upcoming.map((item: any) => (
+                        <Flex key={item.id} align="center" justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5' }}>
+                          <Text type="secondary">{item.businessName}</Text>
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            {dayjs(item.subscriptions[0].endDate).format('DD MMM')}
+                          </Text>
+                        </Flex>
+                      ))}
+                    </div>
+                  )}
+                </Flex>
               ) : (
                 <Empty description="No urgent renewals" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               )}

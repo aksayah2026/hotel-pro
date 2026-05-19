@@ -106,12 +106,16 @@ model TenantDeletionLog {
 }
 
 model SubscriptionPlan {
-  id              String  @id @default(uuid())
+  id              String   @id @default(uuid())
   name            String
   durationInDays  Int
   price           Float
-  isTrial         Boolean @default(false)
-  isCustom        Boolean @default(false)
+  description     String?
+  isActive        Boolean  @default(true)
+  isTrial         Boolean  @default(false)
+  isCustom        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscriptions  Subscription[]
   saasPayments   SaaSPayment[]
@@ -407,4 +411,17 @@ model Notification {
   @@index([tenantId])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model SubscriptionNotificationLog {
+  id             String   @id @default(uuid())
+  tenantId       String
+  subscriptionId String
+  type           String // TWO_DAYS, ONE_DAY, EXPIRED
+  sentAt         DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([type])
+  @@map("subscription_notification_logs")
 }

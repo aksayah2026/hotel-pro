@@ -44,6 +44,7 @@ const api = axios.create({
 // Attach token to every request
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('auth_token');
+  console.log(`[API REQUEST] URL: ${config.url} | TOKEN BEFORE REQUEST:`, token ? `${token.substring(0, 15)}...` : 'NONE');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -52,14 +53,27 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    console.log(`[API RESPONSE ERROR] URL: ${error.config?.url} | STATUS: ${error.response?.status} | MESSAGE: ${error.message}`);
+    
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('auth_user');
-      await AsyncStorage.removeItem('auth_tenant');
-      await AsyncStorage.removeItem('auth_subscription');
-      await AsyncStorage.removeItem('auth_expiry');
-      await AsyncStorage.removeItem('auth_plan');
-      DeviceEventEmitter.emit('auth_error');
+      console.log('--- 401 RESPONSE DETECTED ---');
+      
+      // ONLY logout if it is not the login endpoint
+      if (error.config?.url && !error.config.url.includes('/auth/login') && !error.config.url.includes('auth/login')) {
+        console.log('[LOGOUT TRIGGERED VIA 401 INTERCEPTOR]');
+        console.log('[ASYNC STORAGE CLEARED VIA 401 INTERCEPTOR]');
+        
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('auth_user');
+        await AsyncStorage.removeItem('auth_tenant');
+        await AsyncStorage.removeItem('auth_subscription');
+        await AsyncStorage.removeItem('auth_expiry');
+        await AsyncStorage.removeItem('auth_plan');
+        
+        DeviceEventEmitter.emit('auth_error');
+      } else {
+        console.log('[401 RESPONSE ON LOGIN OR EMPTY URL - SKIPPING LOGOUT ROUTINE]');
+      }
     }
     return Promise.reject(error);
   }

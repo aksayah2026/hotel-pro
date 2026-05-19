@@ -99,6 +99,7 @@ export default function Tenants() {
   const [logs, setLogs] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(true);
 
   // Drawer & Modal states
   const [viewVisible, setViewVisible] = useState(false);
@@ -175,6 +176,13 @@ export default function Tenants() {
     setSelectedTenant(record);
     setViewVisible(true);
     setHistoryLoading(true);
+    setLoadingSubscriptions(true);
+    
+    // Clear state before fetching to avoid flashing old tenant data
+    setPayments([]);
+    setLogs([]);
+    setSubscriptions([]);
+    
     try {
       const [tenantRes, payRes, logRes, subRes] = await Promise.all([
         api.get(`/tenants/${record.id}`),
@@ -190,6 +198,7 @@ export default function Tenants() {
       console.error('Failed to fetch history');
     } finally {
       setHistoryLoading(false);
+      setLoadingSubscriptions(false);
     }
   };
 
@@ -536,7 +545,12 @@ export default function Tenants() {
 
                     <Descriptions title="Subscription Lifecycle & Queue" bordered column={1}>
                       <Descriptions.Item label="Active Subscription">
-                        {subscriptions.find(s => s.status === 'ACTIVE') ? (
+                        {loadingSubscriptions ? (
+                          <Space>
+                            <Spin size="small" />
+                            <Text type="secondary">Loading active subscription...</Text>
+                          </Space>
+                        ) : subscriptions.find(s => s.status === 'ACTIVE') ? (
                           <Space>
                             <Tag color="green" style={{ fontWeight: 'bold' }}>
                               {subscriptions.find(s => s.status === 'ACTIVE').plan?.name}
@@ -550,7 +564,12 @@ export default function Tenants() {
                         )}
                       </Descriptions.Item>
                       <Descriptions.Item label="Next Queued Plan(s)">
-                        {subscriptions.filter(s => s.status === 'QUEUED').length > 0 ? (
+                        {loadingSubscriptions ? (
+                          <Space>
+                            <Spin size="small" />
+                            <Text type="secondary">Loading subscription queue...</Text>
+                          </Space>
+                        ) : subscriptions.filter(s => s.status === 'QUEUED').length > 0 ? (
                           <Space direction="vertical" size={4} style={{ width: '100%' }}>
                             {[...subscriptions.filter(s => s.status === 'QUEUED')]
                               .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())

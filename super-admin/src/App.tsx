@@ -9,7 +9,8 @@ import {
   BankOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  WarningOutlined
+  WarningOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons';
 import { Result } from 'antd';
 
@@ -17,6 +18,7 @@ import { Result } from 'antd';
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Tenants = React.lazy(() => import('./pages/Tenants'));
 const CreateTenant = React.lazy(() => import('./pages/CreateTenant'));
+const Plans = React.lazy(() => import('./pages/Plans'));
 const Login = React.lazy(() => import('./pages/Login'));
 
 // BUG-011: NotFound Page
@@ -77,6 +79,11 @@ function AppContent({ onLogout }: { onLogout: () => void }) {
       key: '/create-tenant',
       icon: <UserAddOutlined />,
       label: <Link to="/create-tenant">Onboard New</Link>,
+    },
+    {
+      key: '/plans',
+      icon: <DatabaseOutlined />,
+      label: <Link to="/plans">SaaS Plans</Link>,
     },
   ];
 
@@ -184,6 +191,7 @@ function AppContent({ onLogout }: { onLogout: () => void }) {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/tenants" element={<Tenants />} />
                 <Route path="/create-tenant" element={<CreateTenant />} />
+                <Route path="/plans" element={<Plans />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ErrorBoundary>

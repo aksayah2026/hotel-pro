@@ -41,12 +41,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadStoredAuth = async () => {
     try {
+      console.log('[AUTH CONTEXT] Hydrating stored auth state...');
       const storedToken = await AsyncStorage.getItem('auth_token');
       const storedUser  = await AsyncStorage.getItem('auth_user');
       const storedTenant = await AsyncStorage.getItem('auth_tenant');
       const storedSub   = await AsyncStorage.getItem('auth_subscription');
       const storedExpiry = await AsyncStorage.getItem('auth_expiry');
       const storedPlan   = await AsyncStorage.getItem('auth_plan');
+
+      console.log('[AUTH CONTEXT] Hydration results - Token exists:', !!storedToken, 'User exists:', !!storedUser);
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -56,16 +59,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedExpiry) setExpiryDate(storedExpiry);
         if (storedPlan) setPlanName(storedPlan);
         
+        console.log('[AUTH CONTEXT] Stored credentials loaded. Refreshing user profile...');
         refreshUser();
       }
-    } catch (_) {}
-    finally { setIsLoading(false); }
+    } catch (err) {
+      console.log('[AUTH CONTEXT] Hydration error:', err);
+    } finally {
+      setIsLoading(false);
+      console.log('[AUTH CONTEXT] Hydration complete, isLoading set to false.');
+    }
   };
 
   const login = async (mobile: string, password: string) => {
+    console.log('[AUTH CONTEXT] login() called for mobile:', mobile);
     const res = await authService.login(mobile, password);
     const { token: t, user: u, tenant: ten, subscriptionStatus: sub, expiryDate: exp, planName: pl } = res.data.data;
     
+    console.log('[AUTH CONTEXT] Login API succeeded. Writing credentials to AsyncStorage...');
     await AsyncStorage.setItem('auth_token', t);
     await AsyncStorage.setItem('auth_user', JSON.stringify(u));
     if (ten) await AsyncStorage.setItem('auth_tenant', JSON.stringify(ten));
@@ -73,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (exp) await AsyncStorage.setItem('auth_expiry', exp);
     if (pl) await AsyncStorage.setItem('auth_plan', pl);
 
+    console.log('[AUTH CONTEXT] AsyncStorage written successfully. Setting React state...');
     setToken(t);
     setUser(u as any);
     setTenant(ten);
@@ -82,18 +93,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    console.log('[LOGOUT TRIGGERED] logout() context method invoked');
+    console.log('[ASYNC STORAGE CLEARED] Wiping auth credentials from storage');
+    
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('auth_user');
     await AsyncStorage.removeItem('auth_tenant');
     await AsyncStorage.removeItem('auth_subscription');
     await AsyncStorage.removeItem('auth_expiry');
     await AsyncStorage.removeItem('auth_plan');
+    
     setToken(null);
     setUser(null);
     setTenant(null);
     setSubscriptionStatus(null);
     setExpiryDate(null);
     setPlanName(null);
+    console.log('[AUTH CONTEXT] logout() complete. State reset successfully.');
   };
 
   const refreshUser = async () => {

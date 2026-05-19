@@ -100,4 +100,132 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-console.log('Subscription cron job scheduled.');
+// Run every day at 9:00 AM for subscription expiry push notifications
+cron.schedule('0 9 * * *', async () => {
+  console.log('[PUSH CRON] Running daily subscription expiry push notifications check at 9:00 AM...');
+  try {
+    const { sendPushNotification } = require('./push');
+    const now = new Date();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfTwoDaysFromNow = new Date();
+    endOfTwoDaysFromNow.setDate(startOfToday.getDate() + 2);
+    endOfTwoDaysFromNow.setHours(23, 59, 59, 999);
+
+    // 1. Query ACTIVE subscriptions ending within the next 2 days (today, tomorrow, or in 2 days)
+    const activeSubs = await prisma.subscription.findMany({
+      where: {
+        status: 'ACTIVE',
+        endDate: {
+          gte: startOfToday,
+          lte: endOfTwoDaysFromNow
+        },
+        tenant: {
+          isActive: true,
+          isBlocked: false,
+          accessLevel: 'FULL',
+          isSystem: false
+        }
+      },
+      include: {
+        tenant: {
+          include: {
+            users: {
+              where: {
+                role: 'TENANT_ADMIN',
+                isActive: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    console.log(`[PUSH CRON] Found ${activeSubs.length} subscriptions expiring in the next 2 days.`);
+
+    for (const sub of activeSubs) {
+      // 2. Edge Case Check: If there's already a renewal or queued plan, skip notifying
+      const queuedPlan = await prisma.subscription.findFirst({
+        where: {
+          tenantId: sub.tenantId,
+          status: 'QUEUED'
+        }
+      });
+      if (queuedPlan) {
+        console.log(`[PUSH CRON] Tenant ${sub.tenant.businessName} has a QUEUED renewal plan. Skipping expiry notifications.`);
+        continue;
+      }
+
+      // 3. Calculate exact diff days
+      const subEndDate = new Date(sub.endDate);
+      subEndDate.setHours(0, 0, 0, 0);
+      const diffTime = subEndDate.getTime() - startOfToday.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      let notificationType = '';
+      let title = '';
+      let message = '';
+
+      if (diffDays === 2) {
+        notificationType = 'TWO_DAYS';
+        title = 'Subscription Expiring Soon';
+        message = 'Your HotelPro subscription expires in 2 days. Please renew to avoid service interruption.';
+      } else if (diffDays === 1) {
+        notificationType = 'ONE_DAY';
+        title = 'Subscription Expires Tomorrow';
+        message = 'Your HotelPro subscription expires tomorrow. Renew now to continue uninterrupted access.';
+      } else if (diffDays === 0) {
+        notificationType = 'EXPIRED';
+        title = 'Subscription Expired';
+        message = 'Your HotelPro subscription has expired today. Please renew immediately to continue using services.';
+      } else {
+        continue;
+      }
+
+      // 4. Duplicate prevention log check
+      const existingLog = await prisma.subscriptionNotificationLog.findFirst({
+        where: {
+          tenantId: sub.tenantId,
+          subscriptionId: sub.id,
+          type: notificationType
+        }
+      });
+
+      if (existingLog) {
+        console.log(`[PUSH CRON] Notification ${notificationType} already logged/sent for subscription ${sub.id} (Tenant ${sub.tenant.businessName})`);
+        continue;
+      }
+
+      // 5. Filter out STAFF users (only notify TENANT_ADMIN)
+      const targetUserIds = sub.tenant.users.map(u => u.id);
+      if (targetUserIds.length === 0) {
+        console.log(`[PUSH CRON] No active TENANT_ADMIN users found for Tenant ${sub.tenant.businessName}. Skipping.`);
+        continue;
+      }
+
+      console.log(`[PUSH CRON] Sending '${title}' notification to ${targetUserIds.length} admins of Tenant ${sub.tenant.businessName}...`);
+
+      // 6. Send push notification & log
+      await sendPushNotification(targetUserIds, title, message, 'SUBSCRIPTION_EXPIRY', {
+        subscriptionId: sub.id,
+        expiryDate: sub.endDate.toISOString()
+      });
+
+      await prisma.subscriptionNotificationLog.create({
+        data: {
+          tenantId: sub.tenantId,
+          subscriptionId: sub.id,
+          type: notificationType
+        }
+      });
+
+      console.log(`[PUSH CRON] Successfully logged and sent ${notificationType} notification to Tenant ${sub.tenant.businessName}.`);
+    }
+
+  } catch (error) {
+    console.error('[PUSH CRON] Subscription expiry push notification job failed:', error);
+  }
+});
+
+console.log('Subscription cron jobs scheduled.');

@@ -50,8 +50,11 @@ const AppInner = () => {
       
       const data = response.notification.request.content.data;
       if (data && navigationRef.isReady()) {
-        // INFORMATIONAL ONLY: We only navigate to the Notification center list
-        // Deep linking to specific booking/room details is now disabled per business requirement.
+        if (data.type === 'SUBSCRIPTION_EXPIRY') {
+          console.log('[PUSH TAP] Subscription expiry notification clicked. Directing to Notification center / Renewal context.');
+        }
+        // INFORMATIONAL ONLY: We navigate to the Notification center list
+        // If the subscription is expired, the RootNavigator will automatically display the SubscriptionExpiredScreen.
         navigationRef.navigate('App', { screen: 'Notification' } as never);
       }
     });

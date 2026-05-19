@@ -2,29 +2,22 @@ const prisma = require('../lib/prisma');
 const bcrypt = require('bcryptjs');
 const { logAction } = require('../utils/audit');
 
-// Cache for plans API
-let plansCache = null;
-let plansCacheTime = 0;
-
 // GET /api/tenants/plans
 const getPlans = async (req, res) => {
   try {
-    if (plansCache && Date.now() - plansCacheTime < 10 * 60 * 1000) {
-      return res.json({ success: true, data: plansCache });
-    }
-
     const plans = await prisma.subscriptionPlan.findMany({
+      where: {
+        isActive: true
+      },
       select: {
         id: true,
         name: true,
         durationInDays: true,
         price: true,
         isTrial: true
-      }
+      },
+      orderBy: { durationInDays: 'asc' }
     });
-
-    plansCache = plans;
-    plansCacheTime = Date.now();
 
     res.json({ success: true, data: plans });
   } catch (error) {

@@ -86,11 +86,40 @@ async function main() {
   }
   console.log(`✅ Rooms found: ${rooms.length} active rooms.`);
 
+  // 4. Cleanup old demo bookings (with 'BK-DEMO-' prefix) to allow safe reruns
+  console.log('🧹 Scanning database for old demo bookings to clean up...');
+  const oldDemoBookings = await prisma.booking.findMany({
+    where: {
+      tenantId: TARGET_TENANT_ID,
+      bookingNumber: { startsWith: 'BK-DEMO-' }
+    },
+    select: { id: true }
+  });
+
+  if (oldDemoBookings.length > 0) {
+    const oldDemoIds = oldDemoBookings.map(b => b.id);
+    console.log(`   👉 Found ${oldDemoIds.length} old demo bookings. Cleaning up dependent records first...`);
+
+    // Clean up dependent records sequentially to prevent foreign key errors
+    await prisma.customer.deleteMany({ where: { bookingId: { in: oldDemoIds } } });
+    await prisma.bookingRoom.deleteMany({ where: { bookingId: { in: oldDemoIds } } });
+    await prisma.payment.deleteMany({ where: { bookingId: { in: oldDemoIds } } });
+    await prisma.extraCharge.deleteMany({ where: { bookingId: { in: oldDemoIds } } });
+    
+    // Delete the bookings themselves
+    const deleteResult = await prisma.booking.deleteMany({ where: { id: { in: oldDemoIds } } });
+    console.log(`   ✅ Successfully deleted ${deleteResult.count} historical demo bookings.`);
+  } else {
+    console.log('   ✅ No old demo bookings found. Proceeding with insert stage.');
+  }
+
   let createdBookingsCount = 0;
   let createdPaymentsCount = 0;
 
-  // 4. Generate Bookings using Prisma transactions
+  // 5. Generate Bookings using lightweight sequential queries to avoid transaction locking/timeout errors
   console.log(`⏳ Seeding ${DAY_OFFSETS.length} historical stays...`);
+
+  const currentTimestamp = Math.floor(Date.now() / 1000);
 
   for (let i = 0; i < DAY_OFFSETS.length; i++) {
     const offset = DAY_OFFSETS[i];
@@ -112,11 +141,9 @@ async function main() {
     // Choose room in round-robin fashion
     const room = rooms[i % rooms.length];
 
-    // Generate unique sequential-looking booking number
-    const dateSlug = checkInDate.getFullYear() + 
-                     String(checkInDate.getMonth() + 1).padStart(2, '0') + 
-                     String(checkInDate.getDate()).padStart(2, '0');
-    const bookingNumber = `HP-${dateSlug}-${String(1000 + i).slice(-4)}`;
+    // Generate dynamic collision-proof booking number with prefix as requested
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const bookingNumber = `BK-DEMO-${currentTimestamp}-${i}-${randomSuffix}`;
 
     // Get customer credentials
     const customerName = CUSTOMER_NAMES[i % CUSTOMER_NAMES.length];
@@ -129,114 +156,116 @@ async function main() {
     const modes = ['CASH', 'UPI', 'CARD'];
     const primaryMode = modes[i % modes.length];
 
-    // Write database transactional records
-    await prisma.$transaction(async (tx) => {
-      // Create Booking
-      const booking = await tx.booking.create({
-        data: {
-          tenantId: TARGET_TENANT_ID,
-          userId: user.id,
-          bookingNumber,
-          checkInDate,
-          checkOutDate,
-          actualCheckIn: checkInDate,
-          actualCheckOut: checkOutDate,
-          status: BOOKING_STATUS,
-          roomAmount: totalAmount,
-          discount: 0,
-          totalAmount,
-          paidAmount: totalAmount,
-          pendingAmount: 0,
-          paymentStatus: PAYMENT_STATUS,
-          specialRequests: i % 4 === 0 ? 'Quiet room preferred' : null,
-          notes: 'Completed booking generated via system seed.'
-        }
-      });
-
-      // Create BookingRoom Map
-      await tx.bookingRoom.create({
-        data: {
-          bookingId: booking.id,
-          roomId: room.id
-        }
-      });
-
-      // Create Customer Info
-      await tx.customer.create({
-        data: {
-          bookingId: booking.id,
-          name: customerName,
-          mobile: mobileNumber,
-          email,
-          aadhaarImage,
-          address
-        }
-      });
-
-      // Payment splits: Full Payment vs Advance + Remaining splits
-      if (i % 3 === 0) {
-        // Split: 40% Advance Payment & 60% Remaining Balance Payment
-        const advanceAmount = Math.round(totalAmount * 0.4);
-        const remainingAmount = totalAmount - advanceAmount;
-
-        const advancePaidAt = new Date(checkInDate);
-        advancePaidAt.setDate(advancePaidAt.getDate() - 3); // Paid 3 days before check-in
-
-        // Advance payment record
-        await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            amount: advanceAmount,
-            mode: primaryMode,
-            type: 'ADVANCE',
-            reference: `TXN-ADV-${dateSlug}-${booking.id.slice(0, 4).toUpperCase()}`,
-            paidAt: advancePaidAt,
-            createdAt: advancePaidAt
-          }
-        });
-
-        // Remaining payment record
-        await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            amount: remainingAmount,
-            mode: primaryMode,
-            type: 'REMAINING',
-            reference: `TXN-REM-${dateSlug}-${booking.id.slice(0, 4).toUpperCase()}`,
-            paidAt: checkOutDate,
-            createdAt: checkOutDate
-          }
-        });
-
-        createdPaymentsCount += 2;
-      } else {
-        // Single Full Payment at Check-In
-        await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            amount: totalAmount,
-            mode: primaryMode,
-            type: 'FULL',
-            reference: `TXN-FUL-${dateSlug}-${booking.id.slice(0, 4).toUpperCase()}`,
-            paidAt: checkInDate,
-            createdAt: checkInDate
-          }
-        });
-
-        createdPaymentsCount += 1;
+    // Write database records sequentially
+    // Create Booking
+    const booking = await prisma.booking.create({
+      data: {
+        tenantId: TARGET_TENANT_ID,
+        userId: user.id,
+        bookingNumber,
+        checkInDate,
+        checkOutDate,
+        actualCheckIn: checkInDate,
+        actualCheckOut: checkOutDate,
+        status: BOOKING_STATUS,
+        roomAmount: totalAmount,
+        discount: 0,
+        totalAmount,
+        paidAmount: totalAmount,
+        pendingAmount: 0,
+        paymentStatus: PAYMENT_STATUS,
+        specialRequests: i % 4 === 0 ? 'Quiet room preferred' : null,
+        notes: 'Completed booking generated via system seed.',
+        createdAt: checkInDate,
+        updatedAt: checkOutDate
       }
-
-      createdBookingsCount++;
     });
+
+    // Create BookingRoom Map
+    await prisma.bookingRoom.create({
+      data: {
+        bookingId: booking.id,
+        roomId: room.id
+      }
+    });
+
+    // Create Customer Info
+    await prisma.customer.create({
+      data: {
+        bookingId: booking.id,
+        name: customerName,
+        mobile: mobileNumber,
+        email,
+        aadhaarImage,
+        address
+      }
+    });
+
+    // Payment splits: Full Payment vs Advance + Remaining splits
+    if (i % 3 === 0) {
+      // Split: 40% Advance Payment & 60% Remaining Balance Payment
+      const advanceAmount = Math.round(totalAmount * 0.4);
+      const remainingAmount = totalAmount - advanceAmount;
+
+      const advancePaidAt = new Date(checkInDate);
+      advancePaidAt.setDate(advancePaidAt.getDate() - 3); // Paid 3 days before check-in
+
+      // Advance payment record
+      await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: advanceAmount,
+          mode: primaryMode,
+          type: 'ADVANCE',
+          reference: `TXN-ADV-${currentTimestamp}-${booking.id.slice(0, 4).toUpperCase()}`,
+          paidAt: advancePaidAt,
+          createdAt: advancePaidAt
+        }
+      });
+
+      // Remaining payment record
+      await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: remainingAmount,
+          mode: primaryMode,
+          type: 'REMAINING',
+          reference: `TXN-REM-${currentTimestamp}-${booking.id.slice(0, 4).toUpperCase()}`,
+          paidAt: checkOutDate,
+          createdAt: checkOutDate
+        }
+      });
+
+      createdPaymentsCount += 2;
+    } else {
+      // Single Full Payment at Check-In
+      await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: totalAmount,
+          mode: primaryMode,
+          type: 'FULL',
+          reference: `TXN-FUL-${currentTimestamp}-${booking.id.slice(0, 4).toUpperCase()}`,
+          paidAt: checkInDate,
+          createdAt: checkInDate
+        }
+      });
+
+      createdPaymentsCount += 1;
+    }
+
+    createdBookingsCount++;
   }
 
-  // 5. Update tenant totals count
+  // 6. Update tenant totals count with absolute database count
+  const absoluteBookingsCount = await prisma.booking.count({
+    where: { tenantId: TARGET_TENANT_ID }
+  });
+
   await prisma.tenant.update({
     where: { id: TARGET_TENANT_ID },
     data: {
-      totalBookings: {
-        increment: createdBookingsCount
-      }
+      totalBookings: absoluteBookingsCount
     }
   });
 

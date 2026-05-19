@@ -19,6 +19,7 @@ const tenantRoutes = require('./routes/tenant.routes');
 const auditLogRoutes = require('./routes/auditLog.routes');
 const saasPaymentRoutes = require('./routes/saasPayment.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const planRoutes = require('./routes/plan.routes');
 
 require('./utils/cron'); // Initialize cron jobs
 
@@ -126,6 +127,7 @@ app.use('/api/auth', authRoutes);
 
 // Tenant Management (Super Admin) - BUG-001: Protect routes
 app.use('/api/tenants', authenticate, requireSuperAdmin, tenantRoutes);
+app.use('/api/plans', authenticate, requireSuperAdmin, planRoutes);
 app.use('/api/audit-logs', authenticate, requireSuperAdmin, auditLogRoutes);
 app.use('/api/saas-payments', authenticate, requireSuperAdmin, saasPaymentRoutes);
 
