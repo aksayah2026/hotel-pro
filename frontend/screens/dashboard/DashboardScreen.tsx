@@ -83,14 +83,6 @@ export default function DashboardScreen() {
     return () => sub.remove();
   }, []);
 
-  // Listen for real-time dashboard refresh signals from other screens
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('REFRESH_DASHBOARD', () => {
-      fetchAll();
-    });
-    return () => sub.remove();
-  }, [fetchAll]);
-
   const fetchRevenue = async (type: string) => {
     if (!isAdmin) return; // Staff shouldn't fetch revenue
     const requestId = ++revenueRequestRef.current;
@@ -147,6 +139,14 @@ export default function DashboardScreen() {
       fetchAll();
     }, [fetchAll])
   );
+
+  // Listen for real-time dashboard refresh signals from other screens
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('REFRESH_DASHBOARD', () => {
+      fetchAll();
+    });
+    return () => sub.remove();
+  }, [fetchAll]);
 
   // Trigger revenue fetch ONLY when filter tab changes
   useEffect(() => {

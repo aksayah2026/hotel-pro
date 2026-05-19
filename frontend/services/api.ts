@@ -8,8 +8,8 @@ import * as Device from 'expo-device';
 // 🔧 Physical machine's IP for testing on same WiFi network
 const DEV_MACHINE_IP = '192.168.0.112';
 
-// export const API_URL = 'https://api.hotelpro.aksayah.com/api';
-export const API_URL = 'http://192.168.0.112:5000/api';
+export const API_URL = 'https://api.hotelpro.aksayah.com/api';
+// export const API_URL = 'http://192.168.0.112:5000/api';
 
 const getBaseUrl = () => {
   // Use live hosted production URL as active base
